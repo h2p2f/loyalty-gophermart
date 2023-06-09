@@ -58,6 +58,13 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		return
 	}
 	h.logger.Sugar().Infof("User %s created", user.Login)
+	token, err := jwt.GenerateToken(user.Login)
+	if err != nil {
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	h.logger.Sugar().Infof("User %s logged in", user.Login)
+	writer.Header().Add("Authorization", "Bearer "+token)
 	writer.WriteHeader(http.StatusOK)
 
 }

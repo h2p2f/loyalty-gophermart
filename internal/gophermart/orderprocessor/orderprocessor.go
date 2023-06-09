@@ -77,7 +77,8 @@ func (op *OrderProcessor) Process() {
 				}
 			}
 		}
+		op.logger.Sugar().Infof("Sleeping for 5 seconds")
+		time.Sleep(5 * time.Second)
 	}
-	op.logger.Sugar().Infof("Sleeping for 5 seconds")
-	time.Sleep(5 * time.Second)
+
 }
