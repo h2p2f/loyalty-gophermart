@@ -127,7 +127,7 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	order := string(buf.Bytes())
+	order := buf.String()
 	owner, found := h.db.CheckUniqueOrder(order)
 	if found {
 		if owner == login {
@@ -184,6 +184,7 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 	login := request.Context().Value("login").(string)
 	balance, err := h.db.GetBalance(login)
 	if err != nil {
+		h.logger.Sugar().Errorf("Error getting balance: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -191,6 +192,7 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 	account := models.Account{Balance: balance, Withdraws: withdraws}
 	resp, err := json.Marshal(account)
 	if err != nil {
+		h.logger.Sugar().Errorf("Error marshalling account: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}

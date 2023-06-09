@@ -49,8 +49,10 @@ func JWTAuth(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-
-		ctx := context.WithValue(r.Context(), "login", tk.Login)
+		//code for statictests
+		type keyType string
+		var key keyType = "login"
+		ctx := context.WithValue(r.Context(), key, tk.Login)
 		r = r.WithContext(ctx)
 		w.Header().Add("Authorization", tokenHeader)
 		next.ServeHTTP(w, r)
