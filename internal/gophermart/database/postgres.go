@@ -120,7 +120,15 @@ func (pgdb *PostgresDB) NewOrder(id, login, status string, accrual float64, time
 func (pgdb *PostgresDB) GetOrdersByUser(login string) ([]byte, error) {
 	var ordersResult []byte
 	rows, err := pgdb.db.Query(
-		`SELECT id, status, accrual, time_created FROM go_mart_order WHERE uuid = $1`, login)
+		`SELECT 
+    				id, status, accrual, time_created 
+				FROM
+				    go_mart_order 
+				WHERE 
+				    uuid = $1 
+				ORDER BY 
+				    time_created`,
+		login)
 	if err != nil {
 		return nil, err
 	}
