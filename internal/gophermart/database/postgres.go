@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
@@ -134,6 +135,7 @@ func (pgdb *PostgresDB) GetOrdersByUser(login string) ([]byte, error) {
 		orders = append(orders, order)
 	}
 	ordersResult, err = json.Marshal(orders)
+	fmt.Println(string(ordersResult))
 	if err != nil {
 		return nil, err
 	}
