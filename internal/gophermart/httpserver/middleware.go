@@ -50,9 +50,9 @@ func JWTAuth(next http.Handler) http.Handler {
 			return
 		}
 		//code for statictests
-		type keyType string
-		var key keyType = "login"
-		ctx := context.WithValue(r.Context(), key, tk.Login)
+		//type keyType string
+		//var key keyType = "login"
+		ctx := context.WithValue(r.Context(), "login", tk.Login)
 		r = r.WithContext(ctx)
 		w.Header().Add("Authorization", tokenHeader)
 		next.ServeHTTP(w, r)
