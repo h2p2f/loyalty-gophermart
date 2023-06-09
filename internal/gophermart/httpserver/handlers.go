@@ -166,8 +166,9 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
+
 	writer.Header().Add("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusOK)
 	_, err = writer.Write(orders)
 	if err != nil {
 		h.logger.Sugar().Error(err)
@@ -193,8 +194,9 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 	writer.Header().Add("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusOK)
+
 	_, err = writer.Write(resp)
 	if err != nil {
 		h.logger.Sugar().Error(err)
@@ -253,8 +255,9 @@ func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *htt
 		writer.WriteHeader(http.StatusNoContent)
 		return
 	}
-	writer.WriteHeader(http.StatusOK)
 	writer.Header().Add("Content-Type", "application/json")
+	writer.WriteHeader(http.StatusOK)
+
 	_, err := writer.Write(withdraws)
 	if err != nil {
 		h.logger.Sugar().Error(err)
