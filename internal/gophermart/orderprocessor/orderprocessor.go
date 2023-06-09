@@ -23,7 +23,7 @@ func NewOrderProcessor(processor processor, logger *zap.Logger) *OrderProcessor 
 	return &OrderProcessor{processor: processor, logger: logger}
 }
 
-func (op *OrderProcessor) Process() {
+func (op *OrderProcessor) Process(address string) {
 	for {
 		unfinishedOrders, err := op.processor.GetUnfinishedOrders()
 		if err != nil {
@@ -33,7 +33,7 @@ func (op *OrderProcessor) Process() {
 			op.logger.Sugar().Infof("Order %s status: %s", order, status)
 			client := resty.New()
 			resp, err := client.R().
-				Get("http://localhost:8081/api/orders/" + order)
+				Get(address + "/api/orders/" + order)
 			op.logger.Sugar().Infof("Order %s status: %s", order, resp.Status())
 			if err != nil {
 				return
