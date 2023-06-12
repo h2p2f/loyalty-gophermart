@@ -215,6 +215,7 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
 	if err != nil {
+		h.logger.Sugar().Errorf("Error reading request body: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -226,6 +227,7 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 	}
 	balance, err := h.db.GetBalance(login)
 	if err != nil {
+		h.logger.Sugar().Errorf("Error getting balance: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
