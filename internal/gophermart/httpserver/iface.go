@@ -2,6 +2,7 @@ package httpserver
 
 import "time"
 
+//go:generate mockery --name DataBaser --output ./mocks --filename mocks_DataBaser.go
 type DataBaser interface {
 	NewUser(login, password string) error
 	NewOrder(id, login, status string, accrual float64, timeCreated time.Time) error
