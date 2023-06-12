@@ -16,14 +16,18 @@ import (
 	"go.uber.org/zap"
 )
 
+// GopherMartHandler is a struct for http handlers
 type GopherMartHandler struct {
 	db     DataBaser
 	logger *zap.Logger
 }
 
+// NewGopherMartHandler is a function that returns a new GopherMartHandler
 func NewGopherMartHandler(db DataBaser, logger *zap.Logger) *GopherMartHandler {
 	return &GopherMartHandler{db: db, logger: logger}
 }
+
+// Register is a function that registers a new user
 func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		h.logger.Sugar().Errorf("Method not allowed: %s", request.Method)
@@ -69,6 +73,7 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 
 }
 
+// Login is a function that logs in a user
 func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		h.logger.Sugar().Errorf("Method not allowed: %s", request.Method)
@@ -111,6 +116,7 @@ func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Requ
 	writer.WriteHeader(http.StatusOK)
 }
 
+// AddOrder is a function that adds a new order
 func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		h.logger.Sugar().Errorf("Method not allowed: %s", request.Method)
@@ -155,6 +161,7 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 
 }
 
+// Orders is a function that returns all orders of a user
 func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
@@ -177,6 +184,7 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 
 }
 
+// Balance is a function that returns the balance of a user
 func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
@@ -206,6 +214,7 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 	}
 }
 
+// Withdraw is a function that withdraws money from a user's account
 func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
@@ -251,6 +260,7 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 
 }
 
+// Withdraws is a function that returns all withdraws of a user
 func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)

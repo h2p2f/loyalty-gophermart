@@ -227,6 +227,11 @@ func (pgdb *PostgresDB) NewWithdraw(login, order string, amount float64, timeCre
 	if err != nil {
 		return err
 	}
+	_, err = pgdb.db.Exec(
+		`UPDATE go_mart_user_balance SET balance = balance - $1 WHERE uuid = $2`, amount, login)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
