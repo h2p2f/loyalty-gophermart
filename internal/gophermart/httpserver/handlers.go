@@ -235,15 +235,15 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusPaymentRequired)
 		return
 	}
-	err = h.db.NewWithdraw(login, withdraw.Order, withdraw.Sum, time.Now())
-	if err != nil {
-		h.logger.Sugar().Errorf("Error create new withdraw %v", err)
-		writer.WriteHeader(http.StatusInternalServerError)
-		return
-	}
 	err = h.db.NewOrder(withdraw.Order, login, models.PROCESSED, 0, time.Now())
 	if err != nil {
 		h.logger.Sugar().Errorf("Error create new order %v", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	err = h.db.NewWithdraw(login, withdraw.Order, withdraw.Sum, time.Now())
+	if err != nil {
+		h.logger.Sugar().Errorf("Error create new withdraw %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
