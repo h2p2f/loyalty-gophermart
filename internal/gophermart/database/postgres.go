@@ -205,6 +205,9 @@ func (pgdb *PostgresDB) GetAllWithdraws(login string) []byte {
 	if err != nil {
 		return nil
 	}
+	if rows.Err() != nil {
+		return nil
+	}
 	defer rows.Close()
 	var withdraws []models.Withdraw
 	for rows.Next() {
@@ -244,6 +247,9 @@ func (pgdb *PostgresDB) GetUnfinishedOrders() (map[string]string, error) {
 	rows, err := pgdb.db.Query(
 		`SELECT id, status FROM go_mart_order WHERE status = $1 OR status = $2`, models.NEW, models.PROCESSING)
 	if err != nil {
+		return nil, err
+	}
+	if rows.Err() != nil {
 		return nil, err
 	}
 	defer rows.Close()
