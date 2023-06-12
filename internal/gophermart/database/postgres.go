@@ -256,5 +256,11 @@ func (pgdb *PostgresDB) UpdateOrderStatus(order, status string, accrual float64)
 	if err != nil {
 		return err
 	}
+	_, err = pgdb.db.Exec(
+		`UPDATE go_mart_user_balance SET balance = balance + $1 WHERE uuid = (SELECT uuid FROM go_mart_order WHERE id = $2)`,
+		accrual, order)
+	if err != nil {
+		return err
+	}
 	return nil
 }
