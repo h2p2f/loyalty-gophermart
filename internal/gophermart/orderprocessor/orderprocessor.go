@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/go-resty/resty/v2"
-	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/logger"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 	"go.uber.org/zap"
 	"time"
@@ -69,10 +68,10 @@ func (op *OrderProcessor) Process(address string) {
 				op.logger.Sugar().Infof("Order %s status: %s", order, models.PROCESSED)
 				err = op.processor.UpdateOrderStatus(order, models.PROCESSED, externalData.Accrual)
 				if err != nil {
-					logger.Log.Sugar().Errorf("Error updating order %s status: %s", order, models.PROCESSED)
-					logger.Log.Sugar().Error(err)
+					op.logger.Sugar().Errorf("Error updating order status: %v", err)
 					return
 				}
+
 			}
 		}
 		op.logger.Sugar().Infof("Sleeping for 2 seconds")
