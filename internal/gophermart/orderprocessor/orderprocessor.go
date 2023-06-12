@@ -64,7 +64,7 @@ func (op *OrderProcessor) Process(address string) {
 				} else {
 					continue
 				}
-			default:
+			case models.PROCESSED:
 				op.logger.Sugar().Infof("Order %s status: %s", order, models.PROCESSED)
 				err = op.processor.UpdateOrderStatus(order, models.PROCESSED, externalData.Accrual)
 				if err != nil {
@@ -73,7 +73,7 @@ func (op *OrderProcessor) Process(address string) {
 			}
 		}
 		op.logger.Sugar().Infof("Sleeping for 5 seconds")
-		time.Sleep(5 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 
 }
