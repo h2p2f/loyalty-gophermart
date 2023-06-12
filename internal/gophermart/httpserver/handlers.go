@@ -50,6 +50,11 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		return
 	}
 	cryptedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		h.logger.Sugar().Errorf("Error hashing password: %v", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	err = h.db.NewUser(user.Login, string(cryptedPassword))
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -123,7 +128,12 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	login := request.Context().Value("login").(string)
+	login, ok := LoginFromContext(request.Context())
+	if !ok {
+		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	h.logger.Sugar().Infof("User %s is adding order", login)
 
 	var buf bytes.Buffer
@@ -167,7 +177,13 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	login := request.Context().Value("login").(string)
+	login, ok := LoginFromContext(request.Context())
+	if !ok {
+		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	//login := request.Context().Value("login").(string)
 	orders, err := h.db.GetOrdersByUser(login)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -190,7 +206,13 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	login := request.Context().Value("login").(string)
+	login, ok := LoginFromContext(request.Context())
+	if !ok {
+		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	//login := request.Context().Value("login").(string)
 	balance, err := h.db.GetBalance(login)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error getting balance: %v", err)
@@ -220,7 +242,13 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	login := request.Context().Value("login").(string)
+	login, ok := LoginFromContext(request.Context())
+	if !ok {
+		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	//login := request.Context().Value("login").(string)
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
 	if err != nil {
@@ -230,6 +258,11 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 	}
 	withdraw := models.Withdraw{}
 	err = json.Unmarshal(buf.Bytes(), &withdraw)
+	if err != nil {
+		h.logger.Sugar().Errorf("Error unmarshalling withdraw: %v", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	if !luhn.Validate(withdraw.Order) {
 		writer.WriteHeader(http.StatusUnprocessableEntity)
 		return
@@ -266,7 +299,13 @@ func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *htt
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	login := request.Context().Value("login").(string)
+	login, ok := LoginFromContext(request.Context())
+	if !ok {
+		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	//login := request.Context().Value("login").(string)
 	withdraws := h.db.GetAllWithdraws(login)
 	if withdraws == nil {
 		writer.WriteHeader(http.StatusNoContent)

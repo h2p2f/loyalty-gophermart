@@ -132,6 +132,9 @@ func (pgdb *PostgresDB) GetOrdersByUser(login string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if rows.Err() != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	var orders []models.Order
 	for rows.Next() {
@@ -191,6 +194,7 @@ func (pgdb *PostgresDB) GetSumOfAllWithdraws(login string) float64 {
 	if err != nil {
 		return 0
 	}
+
 	return withdraws
 }
 

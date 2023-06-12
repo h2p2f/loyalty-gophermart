@@ -9,6 +9,19 @@ import (
 	j "github.com/h2p2f/loyalty-gophermart/internal/gophermart/utils/jwt"
 )
 
+type contextKey string
+
+func (c contextKey) String() string {
+	return string(c)
+}
+
+var loginContextKey = contextKey("login")
+
+func LoginFromContext(ctx context.Context) (string, bool) {
+	login, ok := ctx.Value(loginContextKey).(string)
+	return login, ok
+}
+
 func JWTAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
@@ -52,7 +65,8 @@ func JWTAuth(next http.Handler) http.Handler {
 		//code for statictests
 		//type keyType string
 		//var key keyType = "login"
-		ctx := context.WithValue(r.Context(), "login", tk.Login)
+		ctx := context.WithValue(r.Context(), loginContextKey, tk.Login)
+		//ctx := context.WithValue(r.Context(), "login", tk.Login)
 		r = r.WithContext(ctx)
 		w.Header().Add("Authorization", tokenHeader)
 		next.ServeHTTP(w, r)

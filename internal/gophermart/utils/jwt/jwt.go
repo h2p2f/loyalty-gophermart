@@ -11,14 +11,14 @@ type Claims struct {
 }
 
 const (
-	TOKEN_EXP = 1 * time.Hour
-	SECRET    = "secretest key"
+	TOKENEXPIRES = 1 * time.Hour
+	SECRET       = "secretest key"
 )
 
 func GenerateToken(login string) (string, error) {
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKEN_EXP)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKENEXPIRES)),
 		},
 		Login: login,
 	}
