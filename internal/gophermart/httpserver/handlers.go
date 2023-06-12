@@ -167,7 +167,7 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	h.logger.Sugar().Infof("User %s is getting orders", login)
-	h.logger.Sugar().Infof("Orders: %v", orders)
+	h.logger.Sugar().Infof("Orders: %v", string(orders))
 	writer.Header().Add("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	_, err = writer.Write(orders)
