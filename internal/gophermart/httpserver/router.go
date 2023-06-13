@@ -11,7 +11,8 @@ func RequestRouter(db DataBaser, log *zap.Logger) chi.Router {
 
 	r := chi.NewRouter()
 
-	r.Use(logger.WithLogging, JWTAuth)
+	r.Use(logger.WithLogging, GzipHanler)
+	r.Use(JWTAuth)
 	r.Post("/api/user/register", handler.Register)
 	r.Post("/api/user/login", handler.Login)
 	r.Post("/api/user/orders", handler.AddOrder)
