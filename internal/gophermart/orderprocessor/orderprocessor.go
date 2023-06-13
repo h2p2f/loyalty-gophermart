@@ -56,6 +56,7 @@ func (op *OrderProcessor) Process(address string) {
 				}
 			case models.PROCESSING:
 				if status == models.NEW {
+
 					err = op.processor.UpdateOrderStatus(order, models.PROCESSING, 0)
 					op.logger.Sugar().Infof("Order %s status: %s", order, models.PROCESSING)
 					if err != nil {
@@ -66,6 +67,7 @@ func (op *OrderProcessor) Process(address string) {
 				}
 			case models.PROCESSED:
 				op.logger.Sugar().Infof("Order %s status: %s", order, models.PROCESSED)
+
 				err = op.processor.UpdateOrderStatus(order, models.PROCESSED, externalData.Accrual)
 				if err != nil {
 					op.logger.Sugar().Errorf("Error updating order status: %v", err)

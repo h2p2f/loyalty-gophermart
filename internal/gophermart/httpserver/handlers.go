@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"golang.org/x/crypto/bcrypt"
@@ -55,7 +56,9 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	err = h.db.NewUser(user.Login, string(cryptedPassword))
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	err = h.db.NewUser(ctx, user.Login, string(cryptedPassword))
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -99,7 +102,9 @@ func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Requ
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	pass, err := h.db.FindPassByLogin(user.Login)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	pass, err := h.db.FindPassByLogin(ctx, user.Login)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error finding user: %v", err)
 		writer.WriteHeader(http.StatusUnauthorized)
@@ -144,7 +149,9 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		return
 	}
 	order := buf.String()
-	owner, found := h.db.CheckUniqueOrder(order)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	owner, found := h.db.CheckUniqueOrder(ctx, order)
 	if found {
 		if owner == login {
 			h.logger.Sugar().Info("order already exists")
@@ -160,7 +167,7 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		return
 	}
 	timeCreated := time.Now()
-	err = h.db.NewOrder(order, login, models.NEW, 0, timeCreated)
+	err = h.db.NewOrder(ctx, order, login, models.NEW, 0, timeCreated)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error creating order: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -183,8 +190,9 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//login := request.Context().Value("login").(string)
-	orders, err := h.db.GetOrdersByUser(login)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	orders, err := h.db.GetOrdersByUser(ctx, login)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
@@ -212,14 +220,15 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//login := request.Context().Value("login").(string)
-	balance, err := h.db.GetBalance(login)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	balance, err := h.db.GetBalance(ctx, login)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error getting balance: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	withdraws := h.db.GetSumOfAllWithdraws(login)
+	withdraws := h.db.GetSumOfAllWithdraws(ctx, login)
 	account := models.Account{Balance: balance, Withdraws: withdraws}
 	resp, err := json.Marshal(account)
 	if err != nil {
@@ -248,7 +257,7 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//login := request.Context().Value("login").(string)
+
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
 	if err != nil {
@@ -267,7 +276,9 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
-	balance, err := h.db.GetBalance(login)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	balance, err := h.db.GetBalance(ctx, login)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error getting balance: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -277,13 +288,13 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusPaymentRequired)
 		return
 	}
-	err = h.db.NewOrder(withdraw.Order, login, models.PROCESSED, 0, time.Now())
+	err = h.db.NewOrder(ctx, withdraw.Order, login, models.PROCESSED, 0, time.Now())
 	if err != nil {
 		h.logger.Sugar().Errorf("Error create new order %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	err = h.db.NewWithdraw(login, withdraw.Order, withdraw.Sum, time.Now())
+	err = h.db.NewWithdraw(ctx, login, withdraw.Order, withdraw.Sum, time.Now())
 	if err != nil {
 		h.logger.Sugar().Errorf("Error create new withdraw %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -305,8 +316,9 @@ func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *htt
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	//login := request.Context().Value("login").(string)
-	withdraws := h.db.GetAllWithdraws(login)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	withdraws := h.db.GetAllWithdraws(ctx, login)
 	if withdraws == nil {
 		writer.WriteHeader(http.StatusNoContent)
 		return

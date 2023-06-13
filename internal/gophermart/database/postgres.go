@@ -76,59 +76,49 @@ func (pgdb *PostgresDB) Create() error {
 	return nil
 }
 
-func (pgdb *PostgresDB) NewUser(login, password string) error {
-	_, err := pgdb.db.Exec(
-		`INSERT INTO go_mart_user
+func (pgdb *PostgresDB) NewUser(ctx context.Context, login, password string) error {
+	query := `INSERT INTO go_mart_user
    			(login, password)
-				VALUES ($1, $2)`,
-		login, password)
+				VALUES ($1, $2)`
+	_, err := pgdb.db.ExecContext(ctx, query, login, password)
 	if err != nil {
 		return err
 	}
-	_, err = pgdb.db.Exec(
-		`INSERT INTO go_mart_user_balance
+	query = `INSERT INTO go_mart_user_balance
        			(uuid, balance)
-       				VALUES ($1, $2)`, login, 0)
+       				VALUES ($1, $2)`
+	_, err = pgdb.db.ExecContext(ctx, query, login, 0)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (pgdb *PostgresDB) FindPassByLogin(login string) (string, error) {
+func (pgdb *PostgresDB) FindPassByLogin(ctx context.Context, login string) (string, error) {
 	var password string
-	err := pgdb.db.QueryRow(
-		`SELECT password FROM go_mart_user WHERE login = $1`, login).Scan(&password)
+	query := `SELECT password FROM go_mart_user WHERE login = $1`
+	err := pgdb.db.QueryRowContext(ctx, query, login).Scan(&password)
 	if err != nil {
 		return "", err
 	}
 	return password, nil
 }
 
-func (pgdb *PostgresDB) NewOrder(id, login, status string, accrual float64, timeCreated time.Time) error {
-	_, err := pgdb.db.Exec(
-		`INSERT INTO go_mart_order
-   			(id, uuid, status, accrual, time_created)
-				VALUES ($1, $2, $3, $4, $5)`,
-		id, login, status, accrual, timeCreated)
+func (pgdb *PostgresDB) NewOrder(ctx context.Context, id, login, status string, accrual float64, timeCreated time.Time) error {
+	query := `INSERT INTO go_mart_order
+       			(id, uuid, status, accrual, time_created)
+       				VALUES ($1, $2, $3, $4, $5)`
+	_, err := pgdb.db.ExecContext(ctx, query, id, login, status, accrual, timeCreated)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (pgdb *PostgresDB) GetOrdersByUser(login string) ([]byte, error) {
+func (pgdb *PostgresDB) GetOrdersByUser(ctx context.Context, login string) ([]byte, error) {
 	var ordersResult []byte
-	rows, err := pgdb.db.Query(
-		`SELECT 
-    				id, status, accrual, time_created 
-				FROM
-				    go_mart_order 
-				WHERE 
-				    uuid = $1 
-				ORDER BY 
-				    time_created`,
-		login)
+	query := `SELECT id, status, accrual, time_created FROM go_mart_order WHERE uuid = $1 ORDER BY time_created`
+	rows, err := pgdb.db.QueryContext(ctx, query, login)
 	if err != nil {
 		return nil, err
 	}
@@ -154,20 +144,20 @@ func (pgdb *PostgresDB) GetOrdersByUser(login string) ([]byte, error) {
 
 }
 
-func (pgdb *PostgresDB) CheckUniqueOrder1(order string) bool {
+func (pgdb *PostgresDB) CheckUniqueOrder1(ctx context.Context, order string) bool {
 	var st bool
-	err := pgdb.db.QueryRow(
-		`SELECT EXISTS(SELECT 1 FROM go_mart_order WHERE id = $1)`, order).Scan(&st)
+	query := `SELECT EXISTS(SELECT 1 FROM go_mart_order WHERE id = $1)`
+	err := pgdb.db.QueryRowContext(ctx, query, order).Scan(&st)
 	if err != nil {
 		return false
 	}
 	return st
 }
 
-func (pgdb *PostgresDB) CheckUniqueOrder(order string) (string, bool) {
+func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (string, bool) {
 	var st string
-	err := pgdb.db.QueryRow(
-		`SELECT uuid FROM go_mart_order WHERE id = $1`, order).Scan(&st)
+	query := `SELECT uuid FROM go_mart_order WHERE id = $1`
+	err := pgdb.db.QueryRowContext(ctx, query, order).Scan(&st)
 	if err != nil {
 		return "", false
 	}
@@ -177,20 +167,20 @@ func (pgdb *PostgresDB) CheckUniqueOrder(order string) (string, bool) {
 	return st, true
 }
 
-func (pgdb *PostgresDB) GetBalance(login string) (float64, error) {
+func (pgdb *PostgresDB) GetBalance(ctx context.Context, login string) (float64, error) {
 	var balance float64
-	err := pgdb.db.QueryRow(
-		`SELECT balance FROM go_mart_user_balance WHERE uuid = $1`, login).Scan(&balance)
+	query := `SELECT balance FROM go_mart_user_balance WHERE uuid = $1`
+	err := pgdb.db.QueryRowContext(ctx, query, login).Scan(&balance)
 	if err != nil {
 		return 0, err
 	}
 	return balance, nil
 }
 
-func (pgdb *PostgresDB) GetSumOfAllWithdraws(login string) float64 {
+func (pgdb *PostgresDB) GetSumOfAllWithdraws(ctx context.Context, login string) float64 {
 	var withdraws float64
-	err := pgdb.db.QueryRow(
-		`SELECT SUM(amount) FROM go_mart_withdraws WHERE uuid = $1`, login).Scan(&withdraws)
+	query := `SELECT SUM(amount) FROM go_mart_withdraws WHERE uuid = $1`
+	err := pgdb.db.QueryRowContext(ctx, query, login).Scan(&withdraws)
 	if err != nil {
 		return 0
 	}
@@ -198,10 +188,11 @@ func (pgdb *PostgresDB) GetSumOfAllWithdraws(login string) float64 {
 	return withdraws
 }
 
-func (pgdb *PostgresDB) GetAllWithdraws(login string) []byte {
+func (pgdb *PostgresDB) GetAllWithdraws(ctx context.Context, login string) []byte {
 	var withdrawsResult []byte
-	rows, err := pgdb.db.Query(
-		`SELECT order_id, amount, time_created FROM go_mart_withdraws WHERE uuid = $1`, login)
+	query := `SELECT order_id, amount, time_created FROM go_mart_withdraws WHERE uuid = $1`
+
+	rows, err := pgdb.db.QueryContext(ctx, query, login)
 	if err != nil {
 		return nil
 	}
@@ -225,17 +216,16 @@ func (pgdb *PostgresDB) GetAllWithdraws(login string) []byte {
 	return withdrawsResult
 }
 
-func (pgdb *PostgresDB) NewWithdraw(login, order string, amount float64, timeCreated time.Time) error {
-	_, err := pgdb.db.Exec(
-		`INSERT INTO go_mart_withdraws
-   			(uuid, order_id, amount, time_created)
-				VALUES ($1, $2, $3, $4)`,
-		login, order, amount, timeCreated)
+func (pgdb *PostgresDB) NewWithdraw(ctx context.Context, login, order string, amount float64, timeCreated time.Time) error {
+	query := `INSERT INTO go_mart_withdraws
+       			(uuid, order_id, amount, time_created)
+       				VALUES ($1, $2, $3, $4)`
+	_, err := pgdb.db.ExecContext(ctx, query, login, order, amount, timeCreated)
 	if err != nil {
 		return err
 	}
-	_, err = pgdb.db.Exec(
-		`UPDATE go_mart_user_balance SET balance = balance - $1 WHERE uuid = $2`, amount, login)
+	query = `UPDATE go_mart_user_balance SET balance = balance - $1 WHERE uuid = $2`
+	_, err = pgdb.db.ExecContext(ctx, query, amount, login)
 	if err != nil {
 		return err
 	}
@@ -265,17 +255,28 @@ func (pgdb *PostgresDB) GetUnfinishedOrders() (map[string]string, error) {
 }
 
 func (pgdb *PostgresDB) UpdateOrderStatus(order, status string, accrual float64) error {
-	_, err := pgdb.db.Exec(
-		`UPDATE go_mart_order SET status = $1, accrual = $2 WHERE id = $3`,
-		status, accrual, order)
+	tx, err := pgdb.db.Begin()
+	query := `UPDATE go_mart_order SET status = $1, accrual = $2 WHERE id = $3`
+	_, err = pgdb.db.Exec(query, status, accrual, order)
 	if err != nil {
+		err2 := tx.Rollback()
+		if err2 != nil {
+			pgdb.logger.Sugar().Errorf("Error rollback transaction: %v", err2)
+		}
 		return err
 	}
-	_, err = pgdb.db.Exec(
-		`UPDATE go_mart_user_balance SET balance = balance + $1 WHERE uuid = (SELECT uuid FROM go_mart_order WHERE id = $2)`,
-		accrual, order)
+	query = `UPDATE go_mart_user_balance SET balance = balance + $1 WHERE uuid = (SELECT uuid FROM go_mart_order WHERE id = $2)`
+	_, err = pgdb.db.Exec(query, accrual, order)
 	if err != nil {
+		err2 := tx.Rollback()
+		if err2 != nil {
+			pgdb.logger.Sugar().Errorf("Error rollback transaction: %v", err2)
+		}
 		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		pgdb.logger.Sugar().Errorf("Error commit transaction: %v", err)
 	}
 	return nil
 }
