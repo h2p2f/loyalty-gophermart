@@ -256,6 +256,9 @@ func (pgdb *PostgresDB) GetUnfinishedOrders() (map[string]string, error) {
 
 func (pgdb *PostgresDB) UpdateOrderStatus(order, status string, accrual float64) error {
 	tx, err := pgdb.db.Begin()
+	if err != nil {
+		return err
+	}
 	query := `UPDATE go_mart_order SET status = $1, accrual = $2 WHERE id = $3`
 	_, err = pgdb.db.Exec(query, status, accrual, order)
 	if err != nil {
