@@ -56,9 +56,10 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	user.Password = string(cryptedPassword)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	err = h.db.NewUser(ctx, user.Login, string(cryptedPassword))
+	err = h.db.NewUser(ctx, user)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -167,7 +168,13 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		return
 	}
 	timeCreated := time.Now()
-	err = h.db.NewOrder(ctx, order, login, models.NEW, 0, timeCreated)
+	orderModel := models.Order{
+		Number:      order,
+		Status:      models.NEW,
+		Accrual:     0,
+		TimeCreated: timeCreated,
+	}
+	err = h.db.NewOrder(ctx, login, orderModel)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error creating order: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -288,13 +295,20 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusPaymentRequired)
 		return
 	}
-	err = h.db.NewOrder(ctx, withdraw.Order, login, models.PROCESSED, 0, time.Now())
+	orderModel := models.Order{
+		Number:      withdraw.Order,
+		Status:      models.PROCESSED,
+		Accrual:     0,
+		TimeCreated: time.Now(),
+	}
+	err = h.db.NewOrder(ctx, login, orderModel)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error create new order %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	err = h.db.NewWithdraw(ctx, login, withdraw.Order, withdraw.Sum, time.Now())
+	withdraw.TimeCreated = time.Now()
+	err = h.db.NewWithdraw(ctx, login, withdraw)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error create new withdraw %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -304,7 +318,7 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 
 }
 
-// Withdraws is a function that returns all withdraws of a user
+// Withdrawals is a function that returns all withdraws of a user
 func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)

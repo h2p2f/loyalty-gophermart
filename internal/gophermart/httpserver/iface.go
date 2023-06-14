@@ -2,18 +2,18 @@ package httpserver
 
 import (
 	"context"
-	"time"
+	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 )
 
 //go:generate mockery --name DataBaser --output ./mocks --filename mocks_databaser.go
 type DataBaser interface {
-	NewUser(ctx context.Context, login, password string) error
-	NewOrder(ctx context.Context, id, login, status string, accrual float64, timeCreated time.Time) error
+	NewUser(ctx context.Context, user models.User) error
+	NewOrder(ctx context.Context, login string, order models.Order) error
 	GetOrdersByUser(ctx context.Context, login string) ([]byte, error)
 	CheckUniqueOrder(ctx context.Context, order string) (string, bool)
 	FindPassByLogin(ctx context.Context, login string) (string, error)
 	GetBalance(ctx context.Context, login string) (float64, error)
 	GetSumOfAllWithdraws(ctx context.Context, login string) float64
-	NewWithdraw(ctx context.Context, login, order string, amount float64, timeCreated time.Time) error
+	NewWithdraw(ctx context.Context, login string, withdraw models.Withdraw) error
 	GetAllWithdraws(ctx context.Context, login string) []byte
 }

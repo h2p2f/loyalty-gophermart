@@ -76,18 +76,18 @@ func (pgdb *PostgresDB) Create() error {
 	return nil
 }
 
-func (pgdb *PostgresDB) NewUser(ctx context.Context, login, password string) error {
+func (pgdb *PostgresDB) NewUser(ctx context.Context, user models.User) error {
 	query := `INSERT INTO go_mart_user
    			(login, password)
 				VALUES ($1, $2)`
-	_, err := pgdb.db.ExecContext(ctx, query, login, password)
+	_, err := pgdb.db.ExecContext(ctx, query, user.Login, user.Password)
 	if err != nil {
 		return err
 	}
 	query = `INSERT INTO go_mart_user_balance
        			(uuid, balance)
        				VALUES ($1, $2)`
-	_, err = pgdb.db.ExecContext(ctx, query, login, 0)
+	_, err = pgdb.db.ExecContext(ctx, query, user.Login, 0)
 	if err != nil {
 		return err
 	}
@@ -104,11 +104,11 @@ func (pgdb *PostgresDB) FindPassByLogin(ctx context.Context, login string) (stri
 	return password, nil
 }
 
-func (pgdb *PostgresDB) NewOrder(ctx context.Context, id, login, status string, accrual float64, timeCreated time.Time) error {
+func (pgdb *PostgresDB) NewOrder(ctx context.Context, login string, order models.Order) error {
 	query := `INSERT INTO go_mart_order
        			(id, uuid, status, accrual, time_created)
        				VALUES ($1, $2, $3, $4, $5)`
-	_, err := pgdb.db.ExecContext(ctx, query, id, login, status, accrual, timeCreated)
+	_, err := pgdb.db.ExecContext(ctx, query, order.Number, login, order.Status, order.Accrual, order.TimeCreated)
 	if err != nil {
 		return err
 	}
@@ -216,16 +216,16 @@ func (pgdb *PostgresDB) GetAllWithdraws(ctx context.Context, login string) []byt
 	return withdrawsResult
 }
 
-func (pgdb *PostgresDB) NewWithdraw(ctx context.Context, login, order string, amount float64, timeCreated time.Time) error {
+func (pgdb *PostgresDB) NewWithdraw(ctx context.Context, login string, withdraw models.Withdraw) error {
 	query := `INSERT INTO go_mart_withdraws
        			(uuid, order_id, amount, time_created)
        				VALUES ($1, $2, $3, $4)`
-	_, err := pgdb.db.ExecContext(ctx, query, login, order, amount, timeCreated)
+	_, err := pgdb.db.ExecContext(ctx, query, login, withdraw.Order, withdraw.Sum, withdraw.TimeCreated)
 	if err != nil {
 		return err
 	}
 	query = `UPDATE go_mart_user_balance SET balance = balance - $1 WHERE uuid = $2`
-	_, err = pgdb.db.ExecContext(ctx, query, amount, login)
+	_, err = pgdb.db.ExecContext(ctx, query, withdraw.Sum, login)
 	if err != nil {
 		return err
 	}
