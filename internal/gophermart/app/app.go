@@ -42,7 +42,8 @@ func Run(logger *zap.Logger) {
 
 	go func() {
 		<-sig
-		shutdownCtx, _ := context.WithTimeout(serverCtx, 30*time.Second) //nolint:govet
+		shutdownCtx, cancelCtx := context.WithTimeout(serverCtx, 30*time.Second) //nolint:govet
+		defer cancelCtx()
 		go func() {
 			<-shutdownCtx.Done()
 			if shutdownCtx.Err() == context.DeadlineExceeded {
