@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
@@ -135,8 +135,10 @@ func (pgdb *PostgresDB) GetOrdersByUser(ctx context.Context, login string) ([]by
 		}
 		orders = append(orders, order)
 	}
+	if len(orders) == 0 {
+		return nil, errors.New("no orders found")
+	}
 	ordersResult, err = json.Marshal(orders)
-	fmt.Println(string(ordersResult))
 	if err != nil {
 		return nil, err
 	}
@@ -144,15 +146,15 @@ func (pgdb *PostgresDB) GetOrdersByUser(ctx context.Context, login string) ([]by
 
 }
 
-func (pgdb *PostgresDB) CheckUniqueOrder1(ctx context.Context, order string) bool {
-	var st bool
-	query := `SELECT EXISTS(SELECT 1 FROM go_mart_order WHERE id = $1)`
-	err := pgdb.db.QueryRowContext(ctx, query, order).Scan(&st)
-	if err != nil {
-		return false
-	}
-	return st
-}
+//func (pgdb *PostgresDB) CheckUniqueOrder1(ctx context.Context, order string) bool {
+//	var st bool
+//	query := `SELECT EXISTS(SELECT 1 FROM go_mart_order WHERE id = $1)`
+//	err := pgdb.db.QueryRowContext(ctx, query, order).Scan(&st)
+//	if err != nil {
+//		return false
+//	}
+//	return st
+//}
 
 func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (string, bool) {
 	var st string

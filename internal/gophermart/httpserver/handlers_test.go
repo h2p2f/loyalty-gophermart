@@ -9,12 +9,13 @@ import (
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/httpserver/mocks"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/utils/luhn"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"go.uber.org/zap"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
@@ -263,6 +264,12 @@ func TestGopherMartHandler_Orders(t *testing.T) {
 			code:        500,
 			ordersDasta: []models.Order{},
 		},
+		{
+			name:        "Orders not found",
+			user:        "test_login",
+			code:        500,
+			ordersDasta: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -279,8 +286,10 @@ func TestGopherMartHandler_Orders(t *testing.T) {
 			if err != nil {
 				fmt.Println(err)
 			}
-			if tt.user != "" {
+			if tt.user != "" && tt.ordersDasta != nil {
 				mockDB.On("GetOrdersByUser", mock.Anything, tt.user).Return(mockData, nil)
+			} else if tt.user != "" && tt.ordersDasta == nil {
+				mockDB.On("GetOrdersByUser", mock.Anything, tt.user).Return(nil, errors.New("not found"))
 			}
 
 			handler := &GopherMartHandler{
@@ -297,103 +306,176 @@ func TestGopherMartHandler_Orders(t *testing.T) {
 }
 
 func TestGopherMartHandler_Register(t *testing.T) {
-	type fields struct {
-		db     DataBaser
-		logger *zap.Logger
-	}
-	type args struct {
-		writer  http.ResponseWriter
-		request *http.Request
-	}
+
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name     string
+		user     string
+		password string
+		ifExists bool
+		code     int
 	}{
-		// TODO: Add test cases.
+		{
+			name:     "Register PositiveTest",
+			user:     "test_login",
+			password: "123456789",
+			ifExists: false,
+			code:     200,
+		},
+		{
+			name:     "Register NegativeTest - user exists",
+			user:     "test_login",
+			password: "123456789",
+			ifExists: true,
+			code:     409,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &GopherMartHandler{
-				db:     tt.fields.db,
-				logger: tt.fields.logger,
+			var pgErr pgconn.PgError
+			pgErr.Message = "duplicate login key"
+			pgErr.Severity = "ERROR"
+			pgErr.Code = "23505"
+			err := &pgErr
+			mockDB := mocks.NewDataBaser(t)
+			u := []byte(`
+			{
+				"login": "` + tt.user + `",
+				"password": "` + tt.password + `"
 			}
-			h.Register(tt.args.writer, tt.args.request)
+		`)
+			body := bytes.NewBuffer(u)
+			mockWriter := httptest.NewRecorder()
+			mockRequest := httptest.NewRequest("POST", "/register", body)
+			if tt.ifExists {
+				mockDB.On("NewUser", mock.Anything, mock.Anything).Return(err)
+			} else {
+				mockDB.On("NewUser", mock.Anything, mock.Anything).Return(nil)
+			}
+			handler := &GopherMartHandler{
+				db:     mockDB,
+				logger: zap.NewNop(),
+			}
+			handler.Register(mockWriter, mockRequest)
+			assert.Equal(t, tt.code, mockWriter.Code)
+			if tt.code == 200 {
+				token := mockWriter.Header().Get("Authorization")
+				split := strings.Split(token, " ")
+				assert.Equal(t, "Bearer", split[0])
+			}
 		})
 	}
 }
 
 func TestGopherMartHandler_Withdraw(t *testing.T) {
-	type fields struct {
-		db     DataBaser
-		logger *zap.Logger
-	}
-	type args struct {
-		writer  http.ResponseWriter
-		request *http.Request
-	}
+
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
+		name    string
+		user    string
+		order   string
+		sum     float64
+		balance float64
+		code    int
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "Withdraw PositiveTest",
+			user:    "test_login",
+			order:   "2377225624",
+			sum:     500.12,
+			balance: 500.6,
+			code:    200,
+		},
+		{
+			name:    "Withdraw NegativeTest - not enough money",
+			user:    "test_login",
+			order:   "2377225624",
+			sum:     500.12,
+			balance: 0.6,
+			code:    402,
+		},
+		{
+			name:    "Withdraw NegativeTest - not authorized",
+			user:    "",
+			order:   "2377225624",
+			sum:     500.12,
+			balance: 0.6,
+			code:    500,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &GopherMartHandler{
-				db:     tt.fields.db,
-				logger: tt.fields.logger,
+			mockDB := mocks.NewDataBaser(t)
+			mockWriter := httptest.NewRecorder()
+			body := bytes.NewBuffer([]byte(`
+			{	
+				"order": "` + tt.order + `",
+				"sum": ` + fmt.Sprintf("%f", tt.sum) + `
+			}	
+		`))
+			mockRequest := httptest.NewRequest("POST", "/withdraw", body)
+			var mockContext context.Context
+			if tt.user != "" {
+				mockContext = context.WithValue(context.Background(), loginContextKey, tt.user)
+			} else {
+				mockContext = context.Background()
 			}
-			h.Withdraw(tt.args.writer, tt.args.request)
+			if tt.user != "" && tt.balance > tt.sum {
+				mockDB.On("GetBalance", mock.Anything, tt.user).Return(tt.balance, nil)
+				mockDB.On("NewOrder", mock.Anything, tt.user, mock.Anything).Return(nil)
+				mockDB.On("NewWithdraw", mock.Anything, tt.user, mock.Anything).Return(nil)
+			} else if tt.user != "" && tt.balance < tt.sum {
+				mockDB.On("GetBalance", mock.Anything, tt.user).Return(tt.balance, nil)
+			}
+			handler := &GopherMartHandler{
+				db:     mockDB,
+				logger: zap.NewNop(),
+			}
+			handler.Withdraw(mockWriter, mockRequest.WithContext(mockContext))
+			assert.Equal(t, tt.code, mockWriter.Code)
 		})
 	}
 }
 
 func TestGopherMartHandler_Withdrawals(t *testing.T) {
-	type fields struct {
-		db     DataBaser
-		logger *zap.Logger
-	}
-	type args struct {
-		writer  http.ResponseWriter
-		request *http.Request
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h := &GopherMartHandler{
-				db:     tt.fields.db,
-				logger: tt.fields.logger,
-			}
-			h.Withdrawals(tt.args.writer, tt.args.request)
-		})
-	}
-}
 
-func TestNewGopherMartHandler(t *testing.T) {
-	type args struct {
-		db     DataBaser
-		logger *zap.Logger
-	}
 	tests := []struct {
 		name string
-		args args
-		want *GopherMartHandler
+		user string
+		code int
 	}{
-		// TODO: Add test cases.
+		{
+			name: "Withdrawals PositiveTest",
+			user: "test_login",
+			code: 200,
+		},
+		{
+			name: "Withdrawals NegativeTest - not authorized",
+			user: "",
+			code: 500,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewGopherMartHandler(tt.args.db, tt.args.logger); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewGopherMartHandler() = %v, want %v", got, tt.want)
+			mockDB := mocks.NewDataBaser(t)
+			var mockContext context.Context
+			if tt.user != "" {
+				mockContext = context.WithValue(context.Background(), loginContextKey, tt.user)
+			} else {
+				mockContext = context.Background()
 			}
+			if tt.user != "" {
+				someString := "some string"
+				someStringBytes := []byte(someString)
+				mockDB.On("GetAllWithdraws", mock.Anything, tt.user).Return(someStringBytes, nil)
+			}
+			mockWriter := httptest.NewRecorder()
+			mockRequest := httptest.NewRequest("GET", "/withdrawals", nil)
+
+			handler := &GopherMartHandler{
+				db:     mockDB,
+				logger: zap.NewNop(),
+			}
+			handler.Withdrawals(mockWriter, mockRequest.WithContext(mockContext))
+			assert.Equal(t, tt.code, mockWriter.Code)
 		})
 	}
 }
