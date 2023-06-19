@@ -8,6 +8,7 @@ import (
 	"log"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestPostgresDB_CheckUniqueOrder(t *testing.T) {
@@ -344,137 +345,249 @@ func TestPostgresDB_GetUnfinishedOrders(t *testing.T) {
 	}
 }
 
-//func TestPostgresDB_NewOrder(t *testing.T) {
-//	db, err := sql.Open("pgx", "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable")
-//	if err != nil {
-//		log.Fatal(err)
-//		return
-//	}
-//	defer func() {
-//		if err := db.Close(); err != nil {
-//			t.Errorf("can't close db: %v", err)
-//		}
-//	}()
-//	logger := zap.NewExample()
-//	pg := &PostgresDB{
-//		db:     db,
-//		logger: logger,
-//	}
-//	ctx := context.Background()
-//
-//	tests := []struct {
-//		name    string
-//		user    string
-//		order   models.Order
-//		wantErr bool
-//	}{
-//		{
-//			name: "positive test",
-//			user: "FirstUser",
-//			order: models.Order{
-//				Number:      "12345678903",
-//				Status:      "NEW",
-//				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
-//			},
-//			wantErr: false,
-//		},
-//	}
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//
-//			if err := pg.NewOrder(ctx, tt.user, tt.order); (err != nil) != tt.wantErr {
-//				t.Errorf("NewOrder() error = %v, wantErr %v", err, tt.wantErr)
-//			}
-//		})
-//	}
-//}
+func TestPostgresDB_NewOrder(t *testing.T) {
+	db, err := sql.Open("pgx", "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("can't close db: %v", err)
+		}
+	}()
+	logger := zap.NewExample()
+	pg := &PostgresDB{
+		db:     db,
+		logger: logger,
+	}
+	ctx := context.Background()
 
-func TestPostgresDB_NewUser(t *testing.T) {
-	type fields struct {
-		db     *sql.DB
-		logger *zap.Logger
-	}
-	type args struct {
-		ctx  context.Context
-		user models.User
-	}
 	tests := []struct {
 		name    string
-		fields  fields
-		args    args
+		user    string
+		order   models.Order
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "positive test",
+			user: "FirstUser",
+			order: models.Order{
+				Number:      "1234567891",
+				Status:      "NEW",
+				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative test",
+			user: "SecondUser",
+			order: models.Order{
+				Number:      "1234567892",
+				Status:      "NEW",
+				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			},
+			wantErr: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pgdb := &PostgresDB{
-				db:     tt.fields.db,
-				logger: tt.fields.logger,
+
+			if err := pg.NewOrder(ctx, tt.user, tt.order); (err != nil) != tt.wantErr {
+				t.Errorf("NewOrder() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if err := pgdb.NewUser(tt.args.ctx, tt.args.user); (err != nil) != tt.wantErr {
+			if tt.wantErr == false {
+				_, err := pg.db.Exec("DELETE FROM go_mart_order WHERE id = $1", tt.order.Number)
+				if err != nil {
+					t.Errorf("can't delete order: %v", err)
+				}
+			}
+		})
+	}
+}
+
+func TestPostgresDB_NewUser(t *testing.T) {
+	db, err := sql.Open("pgx", "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("can't close db: %v", err)
+		}
+	}()
+	logger := zap.NewExample()
+	pg := &PostgresDB{
+		db:     db,
+		logger: logger,
+	}
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		user    models.User
+		wantErr bool
+	}{
+		{
+			name: "positive test",
+			user: models.User{
+				Login:    "TestUser",
+				Password: "TestPassword",
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+
+			if err := pg.NewUser(ctx, tt.user); (err != nil) != tt.wantErr {
 				t.Errorf("NewUser() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr == false {
+				_, err := pg.db.Exec("DELETE FROM go_mart_user_balance WHERE uuid = $1", tt.user.Login)
+				if err != nil {
+					t.Errorf("can't delete user: %v", err)
+				}
+				_, err = pg.db.Exec("DELETE FROM go_mart_user WHERE login = $1", tt.user.Login)
 			}
 		})
 	}
 }
 
 func TestPostgresDB_NewWithdraw(t *testing.T) {
-	type fields struct {
-		db     *sql.DB
-		logger *zap.Logger
+	db, err := sql.Open("pgx", "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+		return
 	}
-	type args struct {
-		ctx      context.Context
-		login    string
-		withdraw models.Withdraw
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("can't close db: %v", err)
+		}
+	}()
+	logger := zap.NewExample()
+	pg := &PostgresDB{
+		db:     db,
+		logger: logger,
 	}
+	ctx := context.Background()
+
 	tests := []struct {
-		name    string
-		fields  fields
-		args    args
-		wantErr bool
+		name     string
+		user     string
+		withdraw models.Withdraw
+		order    models.Order
+		wantErr  bool
 	}{
-		// TODO: Add test cases.
+		{
+			name: "positive test",
+			user: "FirstUser",
+			withdraw: models.Withdraw{
+				Order:       "1234567891",
+				Sum:         100,
+				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			},
+			order: models.Order{
+				Number:      "1234567891",
+				Status:      "NEW",
+				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			},
+			wantErr: false,
+		},
+		{
+			name: "negative test",
+			user: "SecondUser",
+			withdraw: models.Withdraw{
+				Order:       "1234567892",
+				Sum:         100,
+				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			},
+			order: models.Order{
+				Number:      "1234567892",
+				Status:      "NEW",
+				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			},
+			wantErr: true,
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pgdb := &PostgresDB{
-				db:     tt.fields.db,
-				logger: tt.fields.logger,
+			if !tt.wantErr {
+				if err := pg.NewOrder(ctx, tt.user, tt.order); (err != nil) != tt.wantErr {
+					t.Errorf("NewOrder() error = %v, wantErr %v", err, tt.wantErr)
+				}
+				_, err := pg.db.Exec("UPDATE go_mart_user_balance SET balance = 1000 WHERE uuid = $1", tt.user)
+				if err != nil {
+					t.Errorf("can't update balance: %v", err)
+				}
 			}
-			if err := pgdb.NewWithdraw(tt.args.ctx, tt.args.login, tt.args.withdraw); (err != nil) != tt.wantErr {
+			if err := pg.NewWithdraw(ctx, tt.user, tt.withdraw); (err != nil) != tt.wantErr {
 				t.Errorf("NewWithdraw() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			if !tt.wantErr {
+				_, err = pg.db.Exec("DELETE FROM go_mart_withdraws WHERE order_id = $1", tt.withdraw.Order)
+				if err != nil {
+					t.Errorf("can't delete withdraw: %v", err)
+				}
+				_, err := pg.db.Exec("DELETE FROM go_mart_order WHERE id = $1", tt.order.Number)
+				if err != nil {
+					t.Errorf("can't delete order: %v", err)
+				}
+
+				_, err = pg.db.Exec("UPDATE go_mart_user_balance SET balance = 0 WHERE uuid = $1", tt.user)
+				if err != nil {
+					t.Errorf("can't update balance: %v", err)
+				}
+			}
+
 		})
 	}
 }
 
 func TestPostgresDB_UpdateOrderStatus(t *testing.T) {
-	type fields struct {
-		db     *sql.DB
-		logger *zap.Logger
+	db, err := sql.Open("pgx", "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable")
+	if err != nil {
+		log.Fatal(err)
+		return
 	}
-	type args struct {
+	defer func() {
+		if err := db.Close(); err != nil {
+			t.Errorf("can't close db: %v", err)
+		}
+	}()
+	logger := zap.NewExample()
+	pg := &PostgresDB{
+		db:     db,
+		logger: logger,
+	}
+
+	tests := []struct {
+		name    string
 		order   string
 		status  string
 		accrual float64
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		args    args
 		wantErr bool
 	}{
-		// TODO: Add test cases.
+		{
+			name:    "positive test",
+			order:   "12345678903",
+			status:  "NEW",
+			accrual: 0,
+			wantErr: false,
+		},
+		{
+			name:    "negative test",
+			order:   "12345678904",
+			status:  "NEW",
+			accrual: 0,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pgdb := &PostgresDB{
-				db:     tt.fields.db,
-				logger: tt.fields.logger,
-			}
-			if err := pgdb.UpdateOrderStatus(tt.args.order, tt.args.status, tt.args.accrual); (err != nil) != tt.wantErr {
+
+			if err := pg.UpdateOrderStatus(tt.order, tt.status, tt.accrual); (err != nil) != tt.wantErr {
 				t.Errorf("UpdateOrderStatus() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

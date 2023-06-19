@@ -146,16 +146,6 @@ func (pgdb *PostgresDB) GetOrdersByUser(ctx context.Context, login string) ([]by
 
 }
 
-//func (pgdb *PostgresDB) CheckUniqueOrder1(ctx context.Context, order string) bool {
-//	var st bool
-//	query := `SELECT EXISTS(SELECT 1 FROM go_mart_order WHERE id = $1)`
-//	err := pgdb.db.QueryRowContext(ctx, query, order).Scan(&st)
-//	if err != nil {
-//		return false
-//	}
-//	return st
-//}
-
 func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (string, bool) {
 	var st string
 	query := `SELECT uuid FROM go_mart_order WHERE id = $1`
