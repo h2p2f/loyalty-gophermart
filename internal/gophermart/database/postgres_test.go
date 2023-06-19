@@ -449,7 +449,8 @@ func TestPostgresDB_NewUser(t *testing.T) {
 				if err != nil {
 					t.Errorf("can't delete user: %v", err)
 				}
-				_, err = pg.db.Exec("DELETE FROM go_mart_user WHERE login = $1", tt.user.Login)
+				_, _ = pg.db.Exec("DELETE FROM go_mart_user WHERE login = $1", tt.user.Login)
+
 			}
 		})
 	}
