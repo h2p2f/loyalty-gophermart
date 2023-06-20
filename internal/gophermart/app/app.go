@@ -11,47 +11,39 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 )
 
 func Run(logger *zap.Logger) {
-	//init config
-	config := config.NewConfig()
-	config.SetConfig()
+	//init conf
+	conf := config.NewConfig()
+	conf.SetConfig()
 
 	//param := "postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable"
 	//create model
-	db := database.NewPostgresDB(config.Database, logger)
+	db := database.NewPostgresDB(conf.Database, logger)
 	defer db.Close()
 
 	err := db.Create()
 	if err != nil {
 		logger.Sugar().Errorf("Error creating DB: %s", err)
 	}
-	orderProcessor := orderprocessor.NewOrderProcessor(db, logger)
-	go orderProcessor.Process(config.AccrualSystemAddress)
-
-	router := httpserver.RequestRouter(db, logger)
-
-	server := &http.Server{Addr: config.ServerAddress, Handler: router}
 
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
+
+	router := httpserver.RequestRouter(db, logger)
+	server := &http.Server{Addr: conf.ServerAddress, Handler: router}
+
+	orderProcessor := orderprocessor.NewOrderProcessor(db, logger)
+	go orderProcessor.Process(serverCtx, conf.AccrualSystemAddress)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	go func() {
 		<-sig
-		shutdownCtx, cancelCtx := context.WithTimeout(serverCtx, 30*time.Second) //nolint:govet
-		defer cancelCtx()
-		go func() {
-			<-shutdownCtx.Done()
-			if shutdownCtx.Err() == context.DeadlineExceeded {
-				logger.Sugar().Errorf("Shutdown timeout exceeded")
-			}
-		}()
+
 		logger.Sugar().Infof("Stopping server")
-		err := server.Shutdown(shutdownCtx)
+		err := server.Shutdown(context.Background())
 		if err != nil {
 			logger.Sugar().Errorf("Error stopping server: %s", err)
 		}

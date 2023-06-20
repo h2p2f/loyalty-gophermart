@@ -279,6 +279,10 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	if withdraw.Sum <= 0 {
+		writer.WriteHeader(http.StatusUnprocessableEntity)
+		return
+	}
 	if !luhn.Validate(withdraw.Order) {
 		writer.WriteHeader(http.StatusUnprocessableEntity)
 		return

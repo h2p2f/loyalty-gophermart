@@ -2,6 +2,7 @@ package orderprocessor
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"github.com/go-resty/resty/v2"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
@@ -18,7 +19,7 @@ func NewOrderProcessor(processor processor, logger *zap.Logger) *OrderProcessor 
 	return &OrderProcessor{processor: processor, logger: logger}
 }
 
-func (op *OrderProcessor) Process(address string) {
+func (op *OrderProcessor) Process(ctx context.Context, address string) {
 	for {
 		unfinishedOrders, err := op.processor.GetUnfinishedOrders()
 		if err != nil {
@@ -67,13 +68,17 @@ func (op *OrderProcessor) Process(address string) {
 				}
 			case models.PROCESSED:
 				op.logger.Sugar().Infof("Order %s status: %s", order, models.PROCESSED)
-
 				err = op.processor.UpdateOrderStatus(order, models.PROCESSED, externalData.Accrual)
 				if err != nil {
 					op.logger.Sugar().Errorf("Error updating order status: %v", err)
 					return
 				}
-
+			case models.INVALID:
+				op.logger.Sugar().Infof("Order %s status: %s", order, models.INVALID)
+				err = op.processor.UpdateOrderStatus(order, models.INVALID, 0)
+				if err != nil {
+					return
+				}
 			}
 		}
 		op.logger.Sugar().Infof("Sleeping for 2 seconds")
