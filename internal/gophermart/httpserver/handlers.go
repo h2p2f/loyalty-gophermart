@@ -30,11 +30,13 @@ func NewGopherMartHandler(db DataBaser, logger *zap.Logger) *GopherMartHandler {
 
 // Register is a function that registers a new user
 func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.Request) {
+	// Check if method is POST
 	if request.Method != http.MethodPost {
 		h.logger.Sugar().Errorf("Method not allowed: %s", request.Method)
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// Read request body
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
 	if err != nil {
@@ -42,7 +44,7 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
+	// Unmarshal request body
 	user := models.User{}
 	err = json.Unmarshal(buf.Bytes(), &user)
 	if err != nil {
@@ -50,6 +52,7 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	// Prepare password to be hashed
 	cryptedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error hashing password: %v", err)
@@ -59,6 +62,7 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 	user.Password = string(cryptedPassword)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	//create user in database
 	err = h.db.NewUser(ctx, user)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -71,6 +75,7 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		return
 	}
 	h.logger.Sugar().Infof("User %s created", user.Login)
+	// Generate JWT token
 	token, err := jwt.GenerateToken(user.Login)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -84,11 +89,13 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 
 // Login is a function that logs in a user
 func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Request) {
+	// Check if method is POST
 	if request.Method != http.MethodPost {
 		h.logger.Sugar().Errorf("Method not allowed: %s", request.Method)
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// Read request body
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
 	if err != nil {
@@ -96,6 +103,7 @@ func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Requ
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// Unmarshal request body
 	user := models.User{}
 	err = json.Unmarshal(buf.Bytes(), &user)
 	if err != nil {
@@ -105,18 +113,21 @@ func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Requ
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	// Get password from database
 	pass, err := h.db.FindPassByLogin(ctx, user.Login)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error finding user: %v", err)
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	// Compare passwords
 	err = bcrypt.CompareHashAndPassword([]byte(pass), []byte(user.Password))
 	if err != nil {
 		h.logger.Sugar().Errorf("Error comparing passwords: %v", err)
 		writer.WriteHeader(http.StatusUnauthorized)
 		return
 	}
+	// Generate JWT token
 	token, err := jwt.GenerateToken(user.Login)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -129,11 +140,13 @@ func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Requ
 
 // AddOrder is a function that adds a new order
 func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.Request) {
+	// Check if method is POST
 	if request.Method != http.MethodPost {
 		h.logger.Sugar().Errorf("Method not allowed: %s", request.Method)
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// Get login from context
 	login, ok := LoginFromContext(request.Context())
 	if !ok {
 		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
@@ -141,7 +154,7 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		return
 	}
 	h.logger.Sugar().Infof("User %s is adding order", login)
-
+	// Read request body
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
 	if err != nil {
@@ -149,9 +162,11 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// get order from request body
 	order := buf.String()
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	// check if order already exists
 	owner, found := h.db.CheckUniqueOrder(ctx, order)
 	if found {
 		if owner == login {
@@ -163,11 +178,13 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusConflict)
 		return
 	}
+	// check if order's number is valid
 	if !luhn.Validate(order) {
 		writer.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 	timeCreated := time.Now()
+	// create order in database
 	orderModel := models.Order{
 		Number:      order,
 		Status:      models.NEW,
@@ -187,10 +204,12 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 
 // Orders is a function that returns all orders of a user
 func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Request) {
+	// Check if method is GET
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// Get login from context
 	login, ok := LoginFromContext(request.Context())
 	if !ok {
 		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
@@ -199,6 +218,7 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	// Get orders from database
 	orders, err := h.db.GetOrdersByUser(ctx, login)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
@@ -206,6 +226,7 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 	}
 	h.logger.Sugar().Infof("User %s is getting orders", login)
 	h.logger.Sugar().Infof("Orders: %v", string(orders))
+	// Write orders to response
 	writer.Header().Add("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 	_, err = writer.Write(orders)
@@ -217,10 +238,12 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 
 // Balance is a function that returns the balance of a user
 func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Request) {
+	// Check if method is GET
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// Get login from context
 	login, ok := LoginFromContext(request.Context())
 	if !ok {
 		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
@@ -229,20 +252,24 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	// Get balance from database
 	balance, err := h.db.GetBalance(ctx, login)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error getting balance: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// Get sum of all withdraws from database
 	withdraws := h.db.GetSumOfAllWithdraws(ctx, login)
 	account := models.Account{Balance: balance, Withdraws: withdraws}
+	// Marshal account to json
 	resp, err := json.Marshal(account)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error marshalling account: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// Write account to response
 	writer.Header().Add("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 
@@ -254,17 +281,19 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 
 // Withdraw is a function that withdraws money from a user's account
 func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.Request) {
+	// Check if method is POST
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// Get login from context
 	login, ok := LoginFromContext(request.Context())
 	if !ok {
 		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
+	// Read request body
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
 	if err != nil {
@@ -272,6 +301,7 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// Unmarshal request body to withdraw
 	withdraw := models.Withdraw{}
 	err = json.Unmarshal(buf.Bytes(), &withdraw)
 	if err != nil {
@@ -279,26 +309,31 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// Check if sum is valid
 	if withdraw.Sum <= 0 {
 		writer.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
+	// Check if order is valid
 	if !luhn.Validate(withdraw.Order) {
 		writer.WriteHeader(http.StatusUnprocessableEntity)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
+	// Get balance from database
 	balance, err := h.db.GetBalance(ctx, login)
 	if err != nil {
 		h.logger.Sugar().Errorf("Error getting balance: %v", err)
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	// Check if balance is enough
 	if balance < withdraw.Sum {
 		writer.WriteHeader(http.StatusPaymentRequired)
 		return
 	}
+	// Update balance and create order in database
 	orderModel := models.Order{
 		Number:      withdraw.Order,
 		Status:      models.PROCESSED,
@@ -324,10 +359,12 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 
 // Withdrawals is a function that returns all withdraws of a user
 func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *http.Request) {
+	// Check if method is GET
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	// Get login from context
 	login, ok := LoginFromContext(request.Context())
 	if !ok {
 		h.logger.Sugar().Errorf("Error getting login from context: %v", ok)
@@ -336,11 +373,13 @@ func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *htt
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
+	// Get all withdraws from database
 	withdraws := h.db.GetAllWithdraws(ctx, login)
 	if withdraws == nil {
 		writer.WriteHeader(http.StatusNoContent)
 		return
 	}
+	// Marshal withdraws to json
 	writer.Header().Add("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
 

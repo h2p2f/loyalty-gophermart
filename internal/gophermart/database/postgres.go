@@ -16,6 +16,7 @@ type PostgresDB struct {
 	logger *zap.Logger
 }
 
+// NewPostgresDB creates new PostgresDB
 func NewPostgresDB(param string, logger *zap.Logger) *PostgresDB {
 	db, err := sql.Open("pgx", param)
 	if err != nil {
@@ -24,6 +25,7 @@ func NewPostgresDB(param string, logger *zap.Logger) *PostgresDB {
 	return &PostgresDB{db: db, logger: logger}
 }
 
+// Close database connection
 func (pgdb *PostgresDB) Close() {
 	err := pgdb.db.Close()
 	if err != nil {
@@ -31,6 +33,7 @@ func (pgdb *PostgresDB) Close() {
 	}
 }
 
+// Create creates tables in database
 func (pgdb *PostgresDB) Create() error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -76,6 +79,7 @@ func (pgdb *PostgresDB) Create() error {
 	return nil
 }
 
+// NewUser creates new user in database
 func (pgdb *PostgresDB) NewUser(ctx context.Context, user models.User) error {
 	query := `INSERT INTO go_mart_user
    			(login, password)
@@ -94,6 +98,7 @@ func (pgdb *PostgresDB) NewUser(ctx context.Context, user models.User) error {
 	return nil
 }
 
+// FindPassByLogin finds password by login in database
 func (pgdb *PostgresDB) FindPassByLogin(ctx context.Context, login string) (string, error) {
 	var password string
 	query := `SELECT password FROM go_mart_user WHERE login = $1`
@@ -104,6 +109,7 @@ func (pgdb *PostgresDB) FindPassByLogin(ctx context.Context, login string) (stri
 	return password, nil
 }
 
+// NewOrder creates new order in database
 func (pgdb *PostgresDB) NewOrder(ctx context.Context, login string, order models.Order) error {
 	query := `INSERT INTO go_mart_order
        			(id, uuid, status, accrual, time_created)
@@ -115,6 +121,7 @@ func (pgdb *PostgresDB) NewOrder(ctx context.Context, login string, order models
 	return nil
 }
 
+// GetOrdersByUser gets orders by user from database
 func (pgdb *PostgresDB) GetOrdersByUser(ctx context.Context, login string) ([]byte, error) {
 	var ordersResult []byte
 	query := `SELECT id, status, accrual, time_created FROM go_mart_order WHERE uuid = $1 ORDER BY time_created`
@@ -146,6 +153,7 @@ func (pgdb *PostgresDB) GetOrdersByUser(ctx context.Context, login string) ([]by
 
 }
 
+// CheckUniqueOrder checks if order is unique
 func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (string, bool) {
 	var st string
 	query := `SELECT uuid FROM go_mart_order WHERE id = $1`
@@ -159,6 +167,7 @@ func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (str
 	return st, true
 }
 
+// GetBalance gets balance from database
 func (pgdb *PostgresDB) GetBalance(ctx context.Context, login string) (float64, error) {
 	var balance float64
 	query := `SELECT balance FROM go_mart_user_balance WHERE uuid = $1`
@@ -169,6 +178,7 @@ func (pgdb *PostgresDB) GetBalance(ctx context.Context, login string) (float64, 
 	return balance, nil
 }
 
+// GetSumOfAllWithdraws gets sum of all withdraws from database
 func (pgdb *PostgresDB) GetSumOfAllWithdraws(ctx context.Context, login string) float64 {
 	var withdraws float64
 	query := `SELECT SUM(amount) FROM go_mart_withdraws WHERE uuid = $1`
@@ -180,6 +190,7 @@ func (pgdb *PostgresDB) GetSumOfAllWithdraws(ctx context.Context, login string) 
 	return withdraws
 }
 
+// GetAllWithdraws gets all withdraws from database
 func (pgdb *PostgresDB) GetAllWithdraws(ctx context.Context, login string) []byte {
 	var withdrawsResult []byte
 	query := `SELECT order_id, amount, time_created FROM go_mart_withdraws WHERE uuid = $1`
@@ -208,6 +219,7 @@ func (pgdb *PostgresDB) GetAllWithdraws(ctx context.Context, login string) []byt
 	return withdrawsResult
 }
 
+// NewWithdraw creates new withdraw in database
 func (pgdb *PostgresDB) NewWithdraw(ctx context.Context, login string, withdraw models.Withdraw) error {
 	query := `INSERT INTO go_mart_withdraws
        			(uuid, order_id, amount, time_created)
@@ -224,6 +236,7 @@ func (pgdb *PostgresDB) NewWithdraw(ctx context.Context, login string, withdraw 
 	return nil
 }
 
+// GetUnfinishedOrders gets unfinished orders from database
 func (pgdb *PostgresDB) GetUnfinishedOrders() (map[string]string, error) {
 	orders := make(map[string]string)
 	rows, err := pgdb.db.Query(
@@ -246,6 +259,7 @@ func (pgdb *PostgresDB) GetUnfinishedOrders() (map[string]string, error) {
 	return orders, nil
 }
 
+// UpdateOrderStatus updates order status in database
 func (pgdb *PostgresDB) UpdateOrderStatus(order, status string, accrual float64) error {
 	tx, err := pgdb.db.Begin()
 	if err != nil {

@@ -5,16 +5,19 @@ import (
 	"time"
 )
 
+// Claims - struct for claims
 type Claims struct {
 	jwt.RegisteredClaims
 	Login string
 }
 
+// const for token
 const (
 	TOKENEXPIRES = 1 * time.Hour
 	SECRET       = "secretest key"
 )
 
+// GenerateToken - generate token
 func GenerateToken(login string) (string, error) {
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -26,6 +29,7 @@ func GenerateToken(login string) (string, error) {
 	return token.SignedString([]byte(SECRET))
 }
 
+// ParseToken - parse token
 func ParseToken(tokenString string) (string, error) {
 	claims := &Claims{}
 	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
@@ -37,6 +41,7 @@ func ParseToken(tokenString string) (string, error) {
 	return claims.Login, err
 }
 
+// Valid - check if token is valid
 func (c *Claims) Valid() error {
 	return c.RegisteredClaims.Valid()
 }

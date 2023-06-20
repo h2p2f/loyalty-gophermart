@@ -7,11 +7,11 @@ import (
 )
 
 func main() {
-
+	// Init logger
 	if err := logger.InitLogger("info"); err != nil {
 		fmt.Println(err)
 	}
-
+	//start app
 	app.Run(logger.Log)
 
 }

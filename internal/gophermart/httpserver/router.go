@@ -6,13 +6,15 @@ import (
 	"go.uber.org/zap"
 )
 
+// RequestRouter create router
 func RequestRouter(db DataBaser, log *zap.Logger) chi.Router {
 	handler := NewGopherMartHandler(db, log)
 
 	r := chi.NewRouter()
-
+	//use middlewares
 	r.Use(logger.WithLogging, GzipHanler)
 	r.Use(JWTAuth)
+	//add routes
 	r.Post("/api/user/register", handler.Register)
 	r.Post("/api/user/login", handler.Login)
 	r.Post("/api/user/orders", handler.AddOrder)

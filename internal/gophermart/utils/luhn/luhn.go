@@ -2,6 +2,7 @@ package luhn
 
 import "strconv"
 
+// luhnAlgorithm - function for luhn algorithm
 func luhnAlgorithm(n int) int {
 
 	sum := 0
@@ -19,6 +20,7 @@ func luhnAlgorithm(n int) int {
 	return sum % 10
 }
 
+// Validate - validate order
 func Validate(order string) bool {
 	check, err := strconv.Atoi(order)
 	if err != nil {

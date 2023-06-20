@@ -5,6 +5,8 @@ import (
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 )
 
+// DataBaser interface for database
+//
 //go:generate mockery --name DataBaser --output ./mocks --filename mocks_databaser.go
 type DataBaser interface {
 	NewUser(ctx context.Context, user models.User) error
