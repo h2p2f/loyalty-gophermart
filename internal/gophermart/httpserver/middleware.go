@@ -26,9 +26,20 @@ func LoginFromContext(ctx context.Context) (string, bool) {
 	return login, ok
 }
 
+func KeyFromContext(ctx context.Context) (string, bool) {
+	key, ok := ctx.Value("key").(string)
+	return key, ok
+}
+
 // JWTAuth is a middleware that checks for a valid JWT token in the Authorization header.
 func JWTAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		key, ok := ctx.Value("key").(string)
+		if !ok {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		notAuth := []string{"/api/user/register", "/api/user/login"}
 		requestPath := r.URL.Path
@@ -57,7 +68,8 @@ func JWTAuth(next http.Handler) http.Handler {
 		tk := &j.Claims{}
 		// Parse the JWT token and claims
 		token, err := jwt.ParseWithClaims(tokenPart, tk, func(token *jwt.Token) (interface{}, error) {
-			return []byte(j.SECRET), nil
+			return []byte(key), nil
+			//return []byte(j.Secret), nil
 		})
 
 		if err != nil {
@@ -70,7 +82,7 @@ func JWTAuth(next http.Handler) http.Handler {
 			return
 		}
 		// write login to context
-		ctx := context.WithValue(r.Context(), loginContextKey, tk.Login)
+		ctx = context.WithValue(ctx, loginContextKey, tk.Login)
 		r = r.WithContext(ctx)
 		w.Header().Add("Authorization", tokenHeader)
 		// next middleware chain

@@ -31,22 +31,30 @@ func (op *OrderProcessor) Process(ctx context.Context, address string) {
 		}
 		//Check status of unfinished orders
 		for order, status := range unfinishedOrders {
-			op.logger.Sugar().Infof("Order %s status: %s", order, status)
+			op.logger.Sugar().Infof("Order %s status: %s in Gophermart system", order, status)
 			client := resty.New()
+			client.SetTimeout(5 * time.Millisecond)
 			resp, err := client.R().
 				Get(address + "/api/orders/" + order)
-			op.logger.Sugar().Infof("Order %s status: %s", order, resp.Status())
+
+			op.logger.Sugar().Infof("Order %s response: %s", order, resp.Status())
 			if err != nil {
 				return
 			}
+			//op.logger.Sugar().Infof("Order %s status: %s", order, resp.Status())
 			if resp.StatusCode() == 204 {
-				op.logger.Sugar().Infof("Order %s not found", order)
+				op.logger.Sugar().Infof("Order %s not found in accrual system", order)
 				continue
 			}
 			//If we have too many requests, we need to wait
 			if resp.StatusCode() == 429 {
 				op.logger.Sugar().Infof("Too many requests")
 				time.Sleep(60 * time.Second)
+			}
+			if resp.StatusCode() == 500 {
+				op.logger.Sugar().Infof("Internal server error")
+				time.Sleep(2 * time.Second)
+				continue
 			}
 			var buf bytes.Buffer
 			buf.Write(resp.Body())
@@ -95,9 +103,10 @@ func (op *OrderProcessor) Process(ctx context.Context, address string) {
 				}
 			}
 		}
-		op.logger.Sugar().Infof("Sleeping for 2 seconds")
-		//Sleep for 2 seconds
-		time.Sleep(2 * time.Second)
+
+		//this delay is needed to avoid too many requests
+		//Loyalty points accrual processing is unpredictable in time and logic
+		time.Sleep(1 * time.Second)
 	}
 
 }

@@ -36,6 +36,12 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 		writer.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+	key, ok := KeyFromContext(request.Context())
+	if !ok {
+		h.logger.Sugar().Errorf("Error getting key from context")
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	// Read request body
 	var buf bytes.Buffer
 	_, err := buf.ReadFrom(request.Body)
@@ -76,7 +82,7 @@ func (h *GopherMartHandler) Register(writer http.ResponseWriter, request *http.R
 	}
 	h.logger.Sugar().Infof("User %s created", user.Login)
 	// Generate JWT token
-	token, err := jwt.GenerateToken(user.Login)
+	token, err := jwt.GenerateToken(user.Login, key)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return
@@ -93,6 +99,12 @@ func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Requ
 	if request.Method != http.MethodPost {
 		h.logger.Sugar().Errorf("Method not allowed: %s", request.Method)
 		writer.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	key, ok := KeyFromContext(request.Context())
+	if !ok {
+		h.logger.Sugar().Errorf("Error getting key from context")
+		writer.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	// Read request body
@@ -128,7 +140,7 @@ func (h *GopherMartHandler) Login(writer http.ResponseWriter, request *http.Requ
 		return
 	}
 	// Generate JWT token
-	token, err := jwt.GenerateToken(user.Login)
+	token, err := jwt.GenerateToken(user.Login, key)
 	if err != nil {
 		writer.WriteHeader(http.StatusInternalServerError)
 		return

@@ -2,16 +2,18 @@ package httpserver
 
 import (
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/logger"
 	"go.uber.org/zap"
 )
 
 // RequestRouter create router
-func RequestRouter(db DataBaser, log *zap.Logger) chi.Router {
+func RequestRouter(db DataBaser, log *zap.Logger, key string) chi.Router {
 	handler := NewGopherMartHandler(db, log)
 
 	r := chi.NewRouter()
 	//use middlewares
+	r.Use(middleware.WithValue("key", key))
 	r.Use(logger.WithLogging, GzipHanler)
 	r.Use(JWTAuth)
 	//add routes

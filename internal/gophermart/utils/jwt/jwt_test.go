@@ -22,11 +22,11 @@ func TestGenerateToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateToken(tt.login)
+			got, err := GenerateToken(tt.login, "secretest key")
 			if err != nil {
 				t.Errorf("GenerateToken() = %v, want %v", got, tt.want)
 			}
-			login, err := ParseToken(got)
+			login, err := ParseToken(got, "secretest key")
 			if err != nil {
 				t.Errorf("ParseToken() = %v, want %v", login, tt.want)
 			}

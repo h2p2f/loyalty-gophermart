@@ -5,20 +5,29 @@ import (
 	"time"
 )
 
+//func init() {
+//	err := godotenv.Load("secret.env")
+//	if err != nil {
+//		panic(err)
+//	}
+//	Secret = os.Getenv("SECRET")
+//}
+
 // Claims - struct for claims
 type Claims struct {
 	jwt.RegisteredClaims
 	Login string
 }
 
+//var Secret string = "secretest key"
+
 // const for token
 const (
 	TOKENEXPIRES = 1 * time.Hour
-	SECRET       = "secretest key"
 )
 
 // GenerateToken - generate token
-func GenerateToken(login string) (string, error) {
+func GenerateToken(login, key string) (string, error) {
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(TOKENEXPIRES)),
@@ -26,14 +35,14 @@ func GenerateToken(login string) (string, error) {
 		Login: login,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &claims)
-	return token.SignedString([]byte(SECRET))
+	return token.SignedString([]byte(key))
 }
 
 // ParseToken - parse token
-func ParseToken(tokenString string) (string, error) {
+func ParseToken(tokenString, key string) (string, error) {
 	claims := &Claims{}
 	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-		return []byte(SECRET), nil
+		return []byte(key), nil
 	})
 	if claims.Valid() != nil {
 		return "", claims.Valid()
