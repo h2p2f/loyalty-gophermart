@@ -110,27 +110,27 @@ func TestGopherMartHandler_Balance(t *testing.T) {
 		contentType string
 	}{
 		{
-			name:        "Balance PositiveTest 1",
+			name:        "GetBalance PositiveTest 1",
 			balance:     100.1,
 			withdraws:   50.2,
 			user:        "test_login",
-			code:        200,
+			code:        http.StatusOK,
 			contentType: "application/json",
 		},
 		{
-			name:        "Balance PositiveTest 2",
+			name:        "GetBalance PositiveTest 2",
 			balance:     200.1,
 			withdraws:   500000.2,
 			user:        "test_login",
-			code:        200,
+			code:        http.StatusOK,
 			contentType: "application/json",
 		},
 		{
-			name:        "Balance NegativeTest 1",
+			name:        "GetBalance NegativeTest 1",
 			balance:     0,
 			withdraws:   0,
 			user:        "",
-			code:        500,
+			code:        http.StatusInternalServerError,
 			contentType: "",
 		},
 	}
@@ -155,7 +155,7 @@ func TestGopherMartHandler_Balance(t *testing.T) {
 				db:     mockDB,
 				logger: zap.NewNop(),
 			}
-			handler.Balance(mockWriter, mockRequest.WithContext(mockContext))
+			handler.GetBalance(mockWriter, mockRequest.WithContext(mockContext))
 			assert.Equal(t, tt.code, mockWriter.Code)
 			assert.Equal(t, tt.contentType, mockWriter.Header().Get("Content-Type"))
 			if tt.code == 200 {
@@ -183,7 +183,7 @@ func TestGopherMartHandler_Login(t *testing.T) {
 			user:              "test_login",
 			password:          "12345678",
 			encryptedPassword: "$2a$10$4s6.ghWw25/q2fxwLNh/N.UVMDNTK/GhQNR9P2JZALP.bX97ttwOe",
-			code:              200,
+			code:              http.StatusOK,
 			wrongUser:         false,
 		},
 		{
@@ -191,7 +191,7 @@ func TestGopherMartHandler_Login(t *testing.T) {
 			user:              "test_login",
 			password:          "123456789",
 			encryptedPassword: "$2a$10$4s6.ghWw25/q2fxwLNh/N.UVMDNTK/GhQNR9P2JZALP.bX97ttwOe",
-			code:              401,
+			code:              http.StatusUnauthorized,
 			wrongUser:         false,
 		},
 		{
@@ -199,7 +199,7 @@ func TestGopherMartHandler_Login(t *testing.T) {
 			user:              "test_login",
 			password:          "12345678",
 			encryptedPassword: "$2a$10$4s6.ghWw25/q2fxwLNh/N.UVMDNTK/GhQNR9P2JZALP.bX97ttwOe",
-			code:              401,
+			code:              http.StatusUnauthorized,
 			wrongUser:         true,
 		},
 	}
@@ -240,9 +240,9 @@ func TestGopherMartHandler_Orders(t *testing.T) {
 		ordersDasta []models.Order
 	}{
 		{
-			name: "Orders PositiveTest",
+			name: "GetOrders PositiveTest",
 			user: "test_login",
-			code: 200,
+			code: http.StatusOK,
 			ordersDasta: []models.Order{
 				{
 					Number:      "12345678903",
@@ -259,15 +259,15 @@ func TestGopherMartHandler_Orders(t *testing.T) {
 			},
 		},
 		{
-			name:        "Orders not authorized",
+			name:        "GetOrders not authorized",
 			user:        "",
-			code:        500,
+			code:        http.StatusInternalServerError,
 			ordersDasta: []models.Order{},
 		},
 		{
-			name:        "Orders not found",
+			name:        "GetOrders not found",
 			user:        "test_login",
-			code:        500,
+			code:        http.StatusInternalServerError,
 			ordersDasta: nil,
 		},
 	}
@@ -296,9 +296,9 @@ func TestGopherMartHandler_Orders(t *testing.T) {
 				db:     mockDB,
 				logger: zap.NewNop(),
 			}
-			handler.Orders(mockWriter, mockRequest.WithContext(mockContext))
+			handler.GetOrders(mockWriter, mockRequest.WithContext(mockContext))
 			assert.Equal(t, tt.code, mockWriter.Code)
-			if tt.code == 200 {
+			if tt.code == http.StatusOK {
 				assert.Equal(t, mockData, mockWriter.Body.Bytes())
 			}
 		})
@@ -319,14 +319,14 @@ func TestGopherMartHandler_Register(t *testing.T) {
 			user:     "test_login",
 			password: "123456789",
 			ifExists: false,
-			code:     200,
+			code:     http.StatusOK,
 		},
 		{
 			name:     "Register NegativeTest - user exists",
 			user:     "test_login",
 			password: "123456789",
 			ifExists: true,
-			code:     409,
+			code:     http.StatusConflict,
 		},
 	}
 	for _, tt := range tests {
@@ -357,7 +357,7 @@ func TestGopherMartHandler_Register(t *testing.T) {
 			}
 			handler.Register(mockWriter, mockRequest)
 			assert.Equal(t, tt.code, mockWriter.Code)
-			if tt.code == 200 {
+			if tt.code == http.StatusOK {
 				token := mockWriter.Header().Get("Authorization")
 				split := strings.Split(token, " ")
 				assert.Equal(t, "Bearer", split[0])
@@ -377,28 +377,28 @@ func TestGopherMartHandler_Withdraw(t *testing.T) {
 		code    int
 	}{
 		{
-			name:    "Withdraw PositiveTest",
+			name:    "DoWithdraw PositiveTest",
 			user:    "test_login",
 			order:   "2377225624",
 			sum:     500.12,
 			balance: 500.6,
-			code:    200,
+			code:    http.StatusOK,
 		},
 		{
-			name:    "Withdraw NegativeTest - not enough money",
+			name:    "DoWithdraw NegativeTest - not enough money",
 			user:    "test_login",
 			order:   "2377225624",
 			sum:     500.12,
 			balance: 0.6,
-			code:    402,
+			code:    http.StatusPaymentRequired,
 		},
 		{
-			name:    "Withdraw NegativeTest - not authorized",
+			name:    "DoWithdraw NegativeTest - not authorized",
 			user:    "",
 			order:   "2377225624",
 			sum:     500.12,
 			balance: 0.6,
-			code:    500,
+			code:    http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
@@ -429,7 +429,7 @@ func TestGopherMartHandler_Withdraw(t *testing.T) {
 				db:     mockDB,
 				logger: zap.NewNop(),
 			}
-			handler.Withdraw(mockWriter, mockRequest.WithContext(mockContext))
+			handler.DoWithdraw(mockWriter, mockRequest.WithContext(mockContext))
 			assert.Equal(t, tt.code, mockWriter.Code)
 		})
 	}
@@ -443,14 +443,14 @@ func TestGopherMartHandler_Withdrawals(t *testing.T) {
 		code int
 	}{
 		{
-			name: "Withdrawals PositiveTest",
+			name: "GetWithdrawals PositiveTest",
 			user: "test_login",
-			code: 200,
+			code: http.StatusOK,
 		},
 		{
-			name: "Withdrawals NegativeTest - not authorized",
+			name: "GetWithdrawals NegativeTest - not authorized",
 			user: "",
-			code: 500,
+			code: http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
@@ -474,7 +474,7 @@ func TestGopherMartHandler_Withdrawals(t *testing.T) {
 				db:     mockDB,
 				logger: zap.NewNop(),
 			}
-			handler.Withdrawals(mockWriter, mockRequest.WithContext(mockContext))
+			handler.GetWithdrawals(mockWriter, mockRequest.WithContext(mockContext))
 			assert.Equal(t, tt.code, mockWriter.Code)
 		})
 	}

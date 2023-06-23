@@ -12,6 +12,7 @@ import (
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/utils/jwt"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/utils/luhn"
+
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"go.uber.org/zap"
@@ -186,7 +187,7 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 			writer.WriteHeader(http.StatusOK)
 			return
 		}
-		h.logger.Sugar().Info("order already exists")
+		h.logger.Sugar().Info("this order's number conflict with another user's order")
 		writer.WriteHeader(http.StatusConflict)
 		return
 	}
@@ -214,8 +215,8 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 
 }
 
-// Orders is a function that returns all orders of a user
-func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Request) {
+// GetOrders is a function that returns all orders of a user
+func (h *GopherMartHandler) GetOrders(writer http.ResponseWriter, request *http.Request) {
 	// Check if method is GET
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
@@ -237,7 +238,7 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 		return
 	}
 	h.logger.Sugar().Infof("User %s is getting orders", login)
-	h.logger.Sugar().Infof("Orders: %v", string(orders))
+	h.logger.Sugar().Infof("GetOrders: %v", string(orders))
 	// Write orders to response
 	writer.Header().Add("Content-Type", "application/json")
 	writer.WriteHeader(http.StatusOK)
@@ -248,8 +249,8 @@ func (h *GopherMartHandler) Orders(writer http.ResponseWriter, request *http.Req
 
 }
 
-// Balance is a function that returns the balance of a user
-func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Request) {
+// GetBalance is a function that returns the balance of a user
+func (h *GopherMartHandler) GetBalance(writer http.ResponseWriter, request *http.Request) {
 	// Check if method is GET
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
@@ -291,8 +292,8 @@ func (h *GopherMartHandler) Balance(writer http.ResponseWriter, request *http.Re
 	}
 }
 
-// Withdraw is a function that withdraws money from a user's account
-func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.Request) {
+// DoWithdraw is a function that withdraws money from a user's account
+func (h *GopherMartHandler) DoWithdraw(writer http.ResponseWriter, request *http.Request) {
 	// Check if method is POST
 	if request.Method != http.MethodPost {
 		writer.WriteHeader(http.StatusMethodNotAllowed)
@@ -369,8 +370,8 @@ func (h *GopherMartHandler) Withdraw(writer http.ResponseWriter, request *http.R
 
 }
 
-// Withdrawals is a function that returns all withdraws of a user
-func (h *GopherMartHandler) Withdrawals(writer http.ResponseWriter, request *http.Request) {
+// GetWithdrawals is a function that returns all withdraws of a user
+func (h *GopherMartHandler) GetWithdrawals(writer http.ResponseWriter, request *http.Request) {
 	// Check if method is GET
 	if request.Method != http.MethodGet {
 		writer.WriteHeader(http.StatusMethodNotAllowed)

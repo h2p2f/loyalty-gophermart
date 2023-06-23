@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/go-resty/resty/v2"
-	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
-	"go.uber.org/zap"
+	"net/http"
 	"time"
+
+	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
+
+	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 )
 
 // OrderProcessor is a struct for processing orders
@@ -42,16 +45,16 @@ func (op *OrderProcessor) Process(ctx context.Context, address string) {
 				return
 			}
 			//op.logger.Sugar().Infof("Order %s status: %s", order, resp.Status())
-			if resp.StatusCode() == 204 {
+			if resp.StatusCode() == http.StatusNoContent {
 				op.logger.Sugar().Infof("Order %s not found in accrual system", order)
 				continue
 			}
 			//If we have too many requests, we need to wait
-			if resp.StatusCode() == 429 {
+			if resp.StatusCode() == http.StatusTooManyRequests {
 				op.logger.Sugar().Infof("Too many requests")
 				time.Sleep(60 * time.Second)
 			}
-			if resp.StatusCode() == 500 {
+			if resp.StatusCode() == http.StatusInternalServerError {
 				op.logger.Sugar().Infof("Internal server error")
 				time.Sleep(2 * time.Second)
 				continue

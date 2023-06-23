@@ -2,6 +2,7 @@ package httpserver
 
 import (
 	"context"
+
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 )
 

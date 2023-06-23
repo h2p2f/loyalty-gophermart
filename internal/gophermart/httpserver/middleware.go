@@ -40,15 +40,14 @@ func JWTAuth(next http.Handler) http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
-		notAuth := []string{"/api/user/register", "/api/user/login"}
-		requestPath := r.URL.Path
-		for _, value := range notAuth {
-			if value == requestPath {
-				next.ServeHTTP(w, r)
-				return
-			}
-		}
+		//notAuth := []string{"/api/user/register", "/api/user/login"}
+		//requestPath := r.URL.Path
+		//for _, value := range notAuth {
+		//	if value == requestPath {
+		//		next.ServeHTTP(w, r)
+		//		return
+		//	}
+		//}
 		// Get the JWT token from the Authorization header
 		tokenHeader := r.Header.Get("Authorization")
 		// if token is missing, returns error code 403 Unauthorized
