@@ -45,7 +45,7 @@ func TestJWTAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockWriter := httptest.NewRecorder()
 			mockRequest, _ := http.NewRequest(http.MethodGet, tt.url, nil)
-			ctx := context.WithValue(context.Background(), "key", "somesecretkey")
+			ctx := context.WithValue(context.Background(), secretContextKey, "somesecretkey")
 			mockRequest = mockRequest.WithContext(ctx)
 			if tt.code == 200 {
 				token := jwt.NewWithClaims(jwt.SigningMethodHS256, &j.Claims{Login: tt.user})

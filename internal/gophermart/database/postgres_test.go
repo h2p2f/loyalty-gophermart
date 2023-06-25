@@ -56,12 +56,13 @@ func TestPostgresDB_CheckUniqueOrder(t *testing.T) {
 			if got != tt.user {
 				t.Errorf("CheckUniqueOrder() got = %v, want %v", got, tt.user)
 			}
-			if !reflect.DeepEqual(got1, tt.want) {
+			if tt.want != nil && errors.Is(got1, tt.want) {
 				t.Errorf("CheckUniqueOrder() got1 = %v, want %v", got1, tt.want)
 			}
-			//if got1 != tt.want {
+			//if !reflect.DeepEqual(got1, tt.want) {
 			//	t.Errorf("CheckUniqueOrder() got1 = %v, want %v", got1, tt.want)
 			//}
+
 		})
 	}
 }

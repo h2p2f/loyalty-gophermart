@@ -20,6 +20,8 @@ import (
 	"time"
 )
 
+var secretContextKey = contextKey("key")
+
 func TestGopherMartHandler_AddOrder(t *testing.T) {
 
 	tests := []struct {
@@ -216,7 +218,7 @@ func TestGopherMartHandler_Login(t *testing.T) {
 			mockWriter := httptest.NewRecorder()
 			mockRequest := httptest.NewRequest("POST", "/login", body)
 
-			ctx := context.WithValue(context.Background(), "key", "somesecretkey")
+			ctx := context.WithValue(context.Background(), secretContextKey, "somesecretkey")
 			mockRequest = mockRequest.WithContext(ctx)
 			mockDB := mocks.NewDataBaser(t)
 			if !tt.wrongUser {
@@ -349,7 +351,7 @@ func TestGopherMartHandler_Register(t *testing.T) {
 			body := bytes.NewBuffer(u)
 			mockWriter := httptest.NewRecorder()
 			mockRequest := httptest.NewRequest("POST", "/register", body)
-			ctx := context.WithValue(context.Background(), "key", "somesecretkey")
+			ctx := context.WithValue(context.Background(), secretContextKey, "somesecretkey")
 			mockRequest = mockRequest.WithContext(ctx)
 			if tt.ifExists {
 				mockDB.On("NewUser", mock.Anything, mock.Anything).Return(err)
