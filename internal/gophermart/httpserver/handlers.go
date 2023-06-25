@@ -354,10 +354,11 @@ func (h *GopherMartHandler) DoWithdraw(writer http.ResponseWriter, request *http
 		return
 	}
 	// Update balance and create order in database
+	var acc float64 = 0
 	orderModel := models.Order{
 		Number:      withdraw.Order,
 		Status:      models.PROCESSED,
-		Accrual:     nil,
+		Accrual:     &acc,
 		TimeCreated: time.Now(),
 	}
 	err = h.db.NewOrder(ctx, login, orderModel)
