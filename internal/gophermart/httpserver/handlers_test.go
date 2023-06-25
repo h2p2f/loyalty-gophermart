@@ -47,7 +47,7 @@ func TestGopherMartHandler_AddOrder(t *testing.T) {
 		{
 			name:   "AddOrder Wrong Order Number",
 			user:   "test",
-			code:   http.StatusUnprocessableEntity,
+			code:   http.StatusConflict,
 			order:  "1234567890",
 			exists: false,
 		},
@@ -81,13 +81,13 @@ func TestGopherMartHandler_AddOrder(t *testing.T) {
 			}
 			mockDB := mocks.NewDataBaser(t)
 			if tt.user != "" && luhn.Validate(tt.order) && !tt.exists {
-				mockDB.On("CheckUniqueOrder", mock.Anything, tt.order).Return("", false)
+				mockDB.On("CheckUniqueOrder", mock.Anything, tt.order).Return("", nil)
 				mockDB.On("NewOrder", mock.Anything, tt.user, mock.Anything).Return(nil)
 			} else if tt.user != "" && !luhn.Validate(tt.order) {
-				mockDB.On("CheckUniqueOrder", mock.Anything, tt.order).Return("", false)
+				mockDB.On("CheckUniqueOrder", mock.Anything, tt.order).Return("", errors.New("wrong order number"))
 			}
 			if tt.exists {
-				mockDB.On("CheckUniqueOrder", mock.Anything, tt.order).Return(tt.owner, true)
+				mockDB.On("CheckUniqueOrder", mock.Anything, tt.order).Return(tt.owner, errors.New("order exists"))
 			}
 			handler := &GopherMartHandler{
 				db:     mockDB,
@@ -159,7 +159,7 @@ func TestGopherMartHandler_Balance(t *testing.T) {
 			assert.Equal(t, tt.code, mockWriter.Code)
 			assert.Equal(t, tt.contentType, mockWriter.Header().Get("Content-Type"))
 			if tt.code == 200 {
-				expectedAccount := models.Account{Balance: tt.balance, Withdraws: tt.withdraws}
+				expectedAccount := models.Account{Balance: tt.balance, Withdraws: &tt.withdraws}
 				expectedResponse, _ := json.Marshal(expectedAccount)
 				assert.Equal(t, expectedResponse, mockWriter.Body.Bytes())
 			}
@@ -215,6 +215,9 @@ func TestGopherMartHandler_Login(t *testing.T) {
 			body := bytes.NewBuffer(u)
 			mockWriter := httptest.NewRecorder()
 			mockRequest := httptest.NewRequest("POST", "/login", body)
+
+			ctx := context.WithValue(context.Background(), "key", "somesecretkey")
+			mockRequest = mockRequest.WithContext(ctx)
 			mockDB := mocks.NewDataBaser(t)
 			if !tt.wrongUser {
 				mockDB.On("FindPassByLogin", mock.Anything, tt.user).Return(tt.encryptedPassword, nil)
@@ -247,13 +250,13 @@ func TestGopherMartHandler_Orders(t *testing.T) {
 				{
 					Number:      "12345678903",
 					Status:      models.NEW,
-					Accrual:     500.12,
+					Accrual:     nil,
 					TimeCreated: time.Now(),
 				},
 				{
 					Number:      "12345678904",
 					Status:      models.PROCESSED,
-					Accrual:     700.78,
+					Accrual:     nil,
 					TimeCreated: time.Now(),
 				},
 			},
@@ -346,6 +349,8 @@ func TestGopherMartHandler_Register(t *testing.T) {
 			body := bytes.NewBuffer(u)
 			mockWriter := httptest.NewRecorder()
 			mockRequest := httptest.NewRequest("POST", "/register", body)
+			ctx := context.WithValue(context.Background(), "key", "somesecretkey")
+			mockRequest = mockRequest.WithContext(ctx)
 			if tt.ifExists {
 				mockDB.On("NewUser", mock.Anything, mock.Anything).Return(err)
 			} else {

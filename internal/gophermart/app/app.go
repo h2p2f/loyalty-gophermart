@@ -20,11 +20,11 @@ func Run() {
 
 	conf := config.GetConfig()
 
-	if err := logger.InitLogger(conf.LogLevel); err != nil {
+	if err := logger.InitLogger(conf.SystemParams.LogLevel); err != nil {
 		fmt.Println(err)
 	}
 
-	db := database.NewPostgresDB(conf.Database, logger.Log)
+	db := database.NewPostgresDB(conf.Database.Database, logger.Log)
 	defer db.Close()
 	//create table
 	err := db.Create()
@@ -34,12 +34,12 @@ func Run() {
 	//create context for server
 	serverCtx, serverStopCtx := context.WithCancel(context.Background())
 	//create router
-	router := httpserver.RequestRouter(db, logger.Log, conf.Key)
+	router := httpserver.RequestRouter(db, logger.Log, conf.SystemParams.Key)
 	//create server
-	server := &http.Server{Addr: conf.ServerAddress, Handler: router}
+	server := &http.Server{Addr: conf.Server.Address, Handler: router}
 	//create order processor
 	orderProcessor := orderprocessor.NewOrderProcessor(db, logger.Log)
-	go orderProcessor.Process(serverCtx, conf.AccrualSystemAddress)
+	go orderProcessor.Process(serverCtx, conf.AccrualSystem.Address)
 	//create channel for stop server
 	sig := make(chan os.Signal, 1)
 	//notify about stop server

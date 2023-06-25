@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"github.com/h2p2f/loyalty-gophermart/internal/gophermart/models"
 	"go.uber.org/zap"
 	"log"
@@ -33,30 +34,34 @@ func TestPostgresDB_CheckUniqueOrder(t *testing.T) {
 		name  string
 		order string
 		user  string
-		want  bool
+		want  error
 	}{
 		{
 			name:  "positive test",
 			order: "12345678903",
 			user:  "FirstUser",
-			want:  true,
+			want:  nil,
 		},
 		{
 			name:  "negative test",
 			order: "1234567890",
 			user:  "",
-			want:  false,
+			want:  errors.New("sql: no rows in result set"),
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, got1 := pg.CheckUniqueOrder(ctx, tt.order)
+
 			if got != tt.user {
 				t.Errorf("CheckUniqueOrder() got = %v, want %v", got, tt.user)
 			}
-			if got1 != tt.want {
+			if !reflect.DeepEqual(got1, tt.want) {
 				t.Errorf("CheckUniqueOrder() got1 = %v, want %v", got1, tt.want)
 			}
+			//if got1 != tt.want {
+			//	t.Errorf("CheckUniqueOrder() got1 = %v, want %v", got1, tt.want)
+			//}
 		})
 	}
 }
@@ -198,6 +203,7 @@ func TestPostgresDB_GetBalance(t *testing.T) {
 
 			got, err := pg.GetBalance(ctx, tt.user)
 			if (err != nil) != tt.wantErr {
+
 				t.Errorf("GetBalance() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -233,10 +239,9 @@ func TestPostgresDB_GetOrdersByUser(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "positive test",
-			user: "FirstUser",
-
-			want:    []byte(`[{"number":"12345678903","status":"NEW","uploaded_at":"2023-06-09T14:31:04.222794Z"},{"number":"7374867609","status":"NEW","uploaded_at":"2023-06-09T14:31:24.155728Z"}]`),
+			name:    "positive test",
+			user:    "FirstUser",
+			want:    []byte(`[{"number":"12345678903","status":"NEW","accrual":0,"uploaded_at":"2023-06-09T14:31:04.222794Z"},{"number":"7374867609","status":"NEW","accrual":0,"uploaded_at":"2023-06-09T14:31:24.155728Z"}]`),
 			wantErr: false,
 		},
 		{
@@ -250,7 +255,10 @@ func TestPostgresDB_GetOrdersByUser(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 
 			got, err := pg.GetOrdersByUser(ctx, tt.user)
+			//this is for debug
+			//fmt.Println(string(got))
 			if (err != nil) != tt.wantErr {
+
 				t.Errorf("GetOrdersByUser() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
@@ -364,36 +372,43 @@ func TestPostgresDB_NewOrder(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name    string
-		user    string
-		order   models.Order
-		wantErr bool
+		name             string
+		user             string
+		orderNumber      string
+		orderStatus      string
+		orderAccrual     float64
+		orderTimeCreated time.Time
+		order            models.Order
+		wantErr          bool
 	}{
 		{
-			name: "positive test",
-			user: "FirstUser",
-			order: models.Order{
-				Number:      "1234567891",
-				Status:      "NEW",
-				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
-			},
-			wantErr: false,
+			name:             "positive test",
+			user:             "FirstUser",
+			orderNumber:      "1234567891",
+			orderStatus:      "NEW",
+			orderAccrual:     10.01,
+			orderTimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			wantErr:          false,
 		},
 		{
-			name: "negative test",
-			user: "SecondUser",
-			order: models.Order{
-				Number:      "1234567892",
-				Status:      "NEW",
-				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
-			},
-			wantErr: true,
+			name:             "negative test",
+			user:             "SecondUser",
+			orderNumber:      "1234567892",
+			orderStatus:      "NEW",
+			orderAccrual:     10.01,
+			orderTimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			wantErr:          true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			if err := pg.NewOrder(ctx, tt.user, tt.order); (err != nil) != tt.wantErr {
+			order := models.Order{
+				Number:      tt.orderNumber,
+				Status:      tt.orderStatus,
+				Accrual:     &tt.orderAccrual,
+				TimeCreated: tt.orderTimeCreated,
+			}
+			if err := pg.NewOrder(ctx, tt.user, order); (err != nil) != tt.wantErr {
 				t.Errorf("NewOrder() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if tt.wantErr == false {
@@ -475,48 +490,54 @@ func TestPostgresDB_NewWithdraw(t *testing.T) {
 	ctx := context.Background()
 
 	tests := []struct {
-		name     string
-		user     string
-		withdraw models.Withdraw
-		order    models.Order
-		wantErr  bool
+		name         string
+		user         string
+		withdraw     models.Withdraw
+		wSum         float64
+		order        models.Order
+		oNumber      string
+		oStatus      string
+		oAccrual     float64
+		oTimeCreated time.Time
+		wantErr      bool
 	}{
 		{
-			name: "positive test",
-			user: "FirstUser",
-			withdraw: models.Withdraw{
-				Order:       "1234567891",
-				Sum:         100,
-				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
-			},
-			order: models.Order{
-				Number:      "1234567891",
-				Status:      "NEW",
-				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
-			},
-			wantErr: false,
+			name:         "positive test",
+			user:         "FirstUser",
+			wSum:         100,
+			oNumber:      "12345678912",
+			oStatus:      "NEW",
+			oAccrual:     0,
+			oTimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			wantErr:      false,
 		},
 		{
-			name: "negative test",
-			user: "SecondUser",
-			withdraw: models.Withdraw{
-				Order:       "1234567892",
-				Sum:         100,
-				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
-			},
-			order: models.Order{
-				Number:      "1234567892",
-				Status:      "NEW",
-				TimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
-			},
-			wantErr: true,
+			name:         "negative test",
+			user:         "SecondUser",
+			wSum:         100,
+			oNumber:      "1234567892",
+			oStatus:      "NEW",
+			oAccrual:     0,
+			oTimeCreated: time.Date(2023, 6, 9, 14, 31, 4, 222794000, time.UTC),
+			wantErr:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			withdraw := models.Withdraw{
+				Order:       tt.oNumber,
+				Sum:         tt.wSum,
+				TimeCreated: tt.oTimeCreated,
+			}
+			order := models.Order{
+				Number:      tt.oNumber,
+				Status:      tt.oStatus,
+				Accrual:     &tt.oAccrual,
+				TimeCreated: tt.oTimeCreated,
+			}
 			if !tt.wantErr {
-				if err := pg.NewOrder(ctx, tt.user, tt.order); (err != nil) != tt.wantErr {
+				if err := pg.NewOrder(ctx, tt.user, order); (err != nil) != tt.wantErr {
 					t.Errorf("NewOrder() error = %v, wantErr %v", err, tt.wantErr)
 				}
 				_, err := pg.db.Exec("UPDATE go_mart_user_balance SET balance = 1000 WHERE uuid = $1", tt.user)
@@ -524,15 +545,15 @@ func TestPostgresDB_NewWithdraw(t *testing.T) {
 					t.Errorf("can't update balance: %v", err)
 				}
 			}
-			if err := pg.NewWithdraw(ctx, tt.user, tt.withdraw); (err != nil) != tt.wantErr {
+			if err := pg.NewWithdraw(ctx, tt.user, withdraw); (err != nil) != tt.wantErr {
 				t.Errorf("NewWithdraw() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr {
-				_, err = pg.db.Exec("DELETE FROM go_mart_withdraws WHERE order_id = $1", tt.withdraw.Order)
+				_, err = pg.db.Exec("DELETE FROM go_mart_withdraws WHERE order_id = $1", withdraw.Order)
 				if err != nil {
 					t.Errorf("can't delete withdraw: %v", err)
 				}
-				_, err := pg.db.Exec("DELETE FROM go_mart_order WHERE id = $1", tt.order.Number)
+				_, err := pg.db.Exec("DELETE FROM go_mart_order WHERE id = $1", order.Number)
 				if err != nil {
 					t.Errorf("can't delete order: %v", err)
 				}

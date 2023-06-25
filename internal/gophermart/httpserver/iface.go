@@ -13,7 +13,7 @@ type DataBaser interface {
 	NewUser(ctx context.Context, user models.User) error
 	NewOrder(ctx context.Context, login string, order models.Order) error
 	GetOrdersByUser(ctx context.Context, login string) ([]byte, error)
-	CheckUniqueOrder(ctx context.Context, order string) (string, bool)
+	CheckUniqueOrder(ctx context.Context, order string) (string, error)
 	FindPassByLogin(ctx context.Context, login string) (string, error)
 	GetBalance(ctx context.Context, login string) (float64, error)
 	GetSumOfAllWithdraws(ctx context.Context, login string) float64

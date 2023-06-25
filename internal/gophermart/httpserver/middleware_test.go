@@ -1,6 +1,7 @@
 package httpserver
 
 import (
+	"context"
 	"github.com/golang-jwt/jwt/v4"
 	j "github.com/h2p2f/loyalty-gophermart/internal/gophermart/utils/jwt"
 	"github.com/stretchr/testify/assert"
@@ -44,9 +45,11 @@ func TestJWTAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mockWriter := httptest.NewRecorder()
 			mockRequest, _ := http.NewRequest(http.MethodGet, tt.url, nil)
+			ctx := context.WithValue(context.Background(), "key", "somesecretkey")
+			mockRequest = mockRequest.WithContext(ctx)
 			if tt.code == 200 {
 				token := jwt.NewWithClaims(jwt.SigningMethodHS256, &j.Claims{Login: tt.user})
-				tokenString, _ := token.SignedString([]byte("secretest key"))
+				tokenString, _ := token.SignedString([]byte("somesecretkey"))
 				mockRequest.Header.Set("Authorization", "Bearer "+tokenString)
 			}
 			if tt.notValid {

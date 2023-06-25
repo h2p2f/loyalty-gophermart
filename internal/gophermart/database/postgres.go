@@ -38,7 +38,7 @@ func (pgdb *PostgresDB) Close() {
 // Create creates tables in database
 func (pgdb *PostgresDB) Create() error {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	query := `CREATE TABLE IF NOT EXISTS go_mart_user (
 			login text not null PRIMARY KEY,
@@ -156,17 +156,17 @@ func (pgdb *PostgresDB) GetOrdersByUser(ctx context.Context, login string) ([]by
 }
 
 // CheckUniqueOrder checks if order is unique
-func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (string, bool) {
+func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (string, error) {
 	var st string
 	query := `SELECT uuid FROM go_mart_order WHERE id = $1`
 	err := pgdb.db.QueryRowContext(ctx, query, order).Scan(&st)
 	if err != nil {
-		return "", false
+		return "", err
 	}
 	if st == "" {
-		return "", false
+		return "", errors.New("order not found")
 	}
-	return st, true
+	return st, nil
 }
 
 // GetBalance gets balance from database
@@ -267,22 +267,18 @@ func (pgdb *PostgresDB) UpdateOrderStatus(order, status string, accrual float64)
 	if err != nil {
 		return err
 	}
+	defer tx.Rollback()
+
 	query := `UPDATE go_mart_order SET status = $1, accrual = $2 WHERE id = $3`
 	_, err = pgdb.db.Exec(query, status, accrual, order)
 	if err != nil {
-		err2 := tx.Rollback()
-		if err2 != nil {
-			pgdb.logger.Sugar().Errorf("Error rollback transaction: %v", err2)
-		}
+		pgdb.logger.Sugar().Errorf("Error, need rollback transaction: %v", err)
 		return err
 	}
 	query = `UPDATE go_mart_user_balance SET balance = balance + $1 WHERE uuid = (SELECT uuid FROM go_mart_order WHERE id = $2)`
 	_, err = pgdb.db.Exec(query, accrual, order)
 	if err != nil {
-		err2 := tx.Rollback()
-		if err2 != nil {
-			pgdb.logger.Sugar().Errorf("Error rollback transaction: %v", err2)
-		}
+		pgdb.logger.Sugar().Errorf("Error, need rollback transaction: %v", err)
 		return err
 	}
 	err = tx.Commit()

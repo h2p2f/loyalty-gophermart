@@ -16,12 +16,12 @@ type DataBaser struct {
 }
 
 // CheckUniqueOrder provides a mock function with given fields: ctx, order
-func (_m *DataBaser) CheckUniqueOrder(ctx context.Context, order string) (string, bool) {
+func (_m *DataBaser) CheckUniqueOrder(ctx context.Context, order string) (string, error) {
 	ret := _m.Called(ctx, order)
 
 	var r0 string
-	var r1 bool
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, bool)); ok {
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
 		return rf(ctx, order)
 	}
 	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
@@ -30,10 +30,10 @@ func (_m *DataBaser) CheckUniqueOrder(ctx context.Context, order string) (string
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) bool); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
 		r1 = rf(ctx, order)
 	} else {
-		r1 = ret.Get(1).(bool)
+		r1 = ret.Error(1)
 	}
 
 	return r0, r1

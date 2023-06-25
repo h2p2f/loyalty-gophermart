@@ -180,13 +180,14 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	// check if order already exists
-	owner, found := h.db.CheckUniqueOrder(ctx, order)
-	if found {
+	owner, err := h.db.CheckUniqueOrder(ctx, order)
+	if err != nil {
 		if owner == login {
 			h.logger.Sugar().Info("order already exists")
 			writer.WriteHeader(http.StatusOK)
 			return
 		}
+		//your password is incorrect, but the same password is used by the user:Jack17005 :)
 		h.logger.Sugar().Info("this order's number conflict with another user's order")
 		writer.WriteHeader(http.StatusConflict)
 		return
@@ -201,7 +202,7 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 	orderModel := models.Order{
 		Number:      order,
 		Status:      models.NEW,
-		Accrual:     0,
+		Accrual:     nil,
 		TimeCreated: timeCreated,
 	}
 	err = h.db.NewOrder(ctx, login, orderModel)
@@ -274,7 +275,7 @@ func (h *GopherMartHandler) GetBalance(writer http.ResponseWriter, request *http
 	}
 	// Get sum of all withdraws from database
 	withdraws := h.db.GetSumOfAllWithdraws(ctx, login)
-	account := models.Account{Balance: balance, Withdraws: withdraws}
+	account := models.Account{Balance: balance, Withdraws: &withdraws}
 	// Marshal account to json
 	resp, err := json.Marshal(account)
 	if err != nil {
@@ -350,7 +351,7 @@ func (h *GopherMartHandler) DoWithdraw(writer http.ResponseWriter, request *http
 	orderModel := models.Order{
 		Number:      withdraw.Order,
 		Status:      models.PROCESSED,
-		Accrual:     0,
+		Accrual:     nil,
 		TimeCreated: time.Now(),
 	}
 	err = h.db.NewOrder(ctx, login, orderModel)
