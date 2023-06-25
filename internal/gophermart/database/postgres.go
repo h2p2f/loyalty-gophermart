@@ -163,9 +163,7 @@ func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (str
 	if err != nil {
 		return "", err
 	}
-	if st == "" {
-		return "", errors.New("order not found")
-	}
+
 	return st, nil
 }
 

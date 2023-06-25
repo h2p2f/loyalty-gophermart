@@ -182,6 +182,11 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 	// check if order already exists
 	owner, err := h.db.CheckUniqueOrder(ctx, order)
 	if err != nil {
+		h.logger.Sugar().Errorf("Error checking if order exists: %v", err)
+		writer.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	if owner != "" {
 		if owner == login {
 			h.logger.Sugar().Info("order already exists")
 			writer.WriteHeader(http.StatusOK)
