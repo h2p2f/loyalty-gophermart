@@ -161,6 +161,9 @@ func (pgdb *PostgresDB) CheckUniqueOrder(ctx context.Context, order string) (str
 	query := `SELECT uuid FROM go_mart_order WHERE id = $1`
 	err := pgdb.db.QueryRowContext(ctx, query, order).Scan(&st)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
 		return "", err
 	}
 
