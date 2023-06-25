@@ -1,0 +1,9 @@
+  server:
+    host: localhost:8080
+  database:
+    dblink: postgres://practicum:yandex@localhost:5432/postgres?sslmode=disable
+  accrualsystem:
+    accrualsystemaddr: http://localhost:8081
+  systemparams:
+    loglevel: info
+    key: somesecretkey
