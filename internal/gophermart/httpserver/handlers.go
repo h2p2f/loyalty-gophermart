@@ -204,10 +204,11 @@ func (h *GopherMartHandler) AddOrder(writer http.ResponseWriter, request *http.R
 	}
 	timeCreated := time.Now()
 	// create order in database
+	var acc float64 = 0
 	orderModel := models.Order{
 		Number:      order,
 		Status:      models.NEW,
-		Accrual:     nil,
+		Accrual:     &acc,
 		TimeCreated: timeCreated,
 	}
 	err = h.db.NewOrder(ctx, login, orderModel)
